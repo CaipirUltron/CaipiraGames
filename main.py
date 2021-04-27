@@ -8,22 +8,24 @@ WHITE = (255, 255, 255)
 SCREEN_COLOR = WHITE
 FHD_RESOLUTION = (1920,1080)
 HD_RESOLUTION = (1280,720)
-GAME_FPS = 40.0
+GARBAGE_RESOLUTION = (800, 600)
+GAME_FPS = 60.0
 
 deltaTime = 1/GAME_FPS
+gameResolution = GARBAGE_RESOLUTION
 
 # Initialize pygame
 pg.init()
 gameClock = pg.time.Clock()
-screen = pg.display.set_mode(HD_RESOLUTION)
+screen = pg.display.set_mode(gameResolution)
 
 pg.display.set_caption("CaipiraGames")
 icon = pg.image.load("caipiragames.png") # doesn't show the icon at the top-left corner of the game screen on Ubuntu
 pg.display.set_icon(icon)
 
 # Player and enemy
-player = Player("sprites/player", HD_RESOLUTION, deltaTime, x=0.0, y=0.0)
-enemy = Enemy("sprites/enemy", HD_RESOLUTION, deltaTime)
+player = Player("sprites/player", gameResolution, deltaTime, x=0.0, y=0.0)
+enemy = Enemy("sprites/enemy", gameResolution, deltaTime)
 
 def startMovement(pressed_key):
     player_speed_x = player.speed_x
@@ -66,8 +68,6 @@ def eventHandling():
             if event.key == pg.K_LEFT or event.key == pg.K_RIGHT or event.key == pg.K_UP or event.key == pg.K_DOWN:
                 endMovement(event.key)
 
-    print(player.speed_x,player.speed_y)
-
 def redrawGameWindow():
     """
     Method for redrawing the game window.
@@ -79,55 +79,9 @@ while True:
     """
     Main game loop
     """
-    pg.time.delay(50)
     screen.fill(SCREEN_COLOR)
-
-    # # Quit if player exists game window
-    # for event in pg.event.get():
-    #     if event.type == pg.QUIT:
-    #         running = False
-
-        # # Checks if some key was pressed
-        # if event.type == pg.KEYDOWN:
-        #     if event.key == pg.K_LEFT:
-        #         playerSpeedX += -1.0
-        #     if event.key == pg.K_RIGHT:
-        #         playerSpeedX += +1.0
-        #     if event.key == pg.K_UP:
-        #         playerSpeedY += -1.0
-        #     if event.key == pg.K_DOWN:
-        #         playerSpeedY += +1.0
-        # if event.type == pg.KEYUP:
-        #     if event.key == pg.K_LEFT:
-        #         playerSpeedX -= -1.0
-        #     if event.key == pg.K_RIGHT:
-        #         playerSpeedX -= +1.0
-        #     if event.key == pg.K_UP:
-        #         playerSpeedY -= -1.0
-        #     if event.key == pg.K_DOWN:
-        #         playerSpeedY -= +1.0
-
-    # normalization_factor = ( playerSpeedX**2 + playerSpeedY**2 )**0.5
-    # if normalization_factor != 0.0:
-    #     playerX += playerSpeed*playerSpeedX/normalization_factor
-    #     playerY += playerSpeed*playerSpeedY/normalization_factor
-
-    # if playerX <= 0:
-    #     playerX = 0.0
-    # elif playerX >= HD_RESOLUTION[0]-playerImg.get_rect().size[0]:
-    #     playerX = HD_RESOLUTION[0]-playerImg.get_rect().size[0]
-
-    # if playerY <= 0:
-    #     playerY = 0.0
-    # elif playerY >= HD_RESOLUTION[1]-playerImg.get_rect().size[1]:
-    #     playerY = HD_RESOLUTION[1]-playerImg.get_rect().size[1]
-
-    # # Updates game window
-    # move_player(playerX, playerY)
-    # move_enemy(enemyX, enemyY)
 
     eventHandling()
     redrawGameWindow()
 
-    # Limit game to 40 fps
     gameClock.tick(GAME_FPS)

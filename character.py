@@ -1,7 +1,7 @@
 import os, os.path
 import pygame as pg
 
-DEFAULT_CHAR_SPEED = 100
+DEFAULT_CHAR_SPEED = 20.0 # pixel/s
 
 def get_sprites(sprite_folder):
     """ 
@@ -53,23 +53,8 @@ class Character():
     def move(self, vel_x, vel_y):
         self.speed_x = vel_x
         self.speed_y = vel_y
-        print(self.x, self.y)
-        self.update_position()
 
     def update_position(self):
-        # keys = pg.key.get_pressed()
-
-        # speed_x = 0.0
-        # speed_y = 0.0
-        # if keys[pg.K_LEFT]:
-        #     speed_x = -1.0
-        # if keys[pg.K_RIGHT]:
-        #     speed_x = +1.0
-        # if keys[pg.K_UP]:
-        #     speed_y = -1.0
-        # if keys[pg.K_DOWN]:
-        #     speed_y = +1.0
-
         normalization_factor = ( self.speed_x**2 + self.speed_y**2 )**0.5
         if normalization_factor != 0.0:
             self.x += self.deltaTime*DEFAULT_CHAR_SPEED*self.speed_x/normalization_factor
