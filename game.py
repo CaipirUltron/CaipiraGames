@@ -45,7 +45,7 @@ class Game:
         """
         self.display.fill(BLACK)
         while self.playing:
-
+ 
             self.handleGameEvents()
 
             if self.START_KEY:
@@ -68,8 +68,8 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running, self.playing = False, False
                 self.curr_menu.isRunning = False
-                pygame.quit()
-                sys.exit()
+                # pygame.quit()
+                # sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                     self.player.startMovement(event.key)
@@ -131,8 +131,7 @@ class Character():
             self.y = self.screen_resolution[1]-self.height
 
     def set_speed(self, vel_x, vel_y):
-        self.speed_x = vel_x
-        self.speed_y = vel_y
+        self.speed_x, self.speed_y = vel_x, vel_y
 
     def update(self):
         normalization_factor = ( self.speed_x**2 + self.speed_y**2 )**0.5
