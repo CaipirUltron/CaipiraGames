@@ -6,10 +6,10 @@ Abstract class Scene: abstract class for scripting game scenes, such as menus, l
 
 The class contains four main methods: 
 
-(1) @abstractmethod eventHandler: receives an event from the queue and processes it according to the scene logic. [must be implemented]
+**(1) @abstractmethod eventHandler**: receives an event from the queue and processes it according to the scene logic. [must be implemented]
 
-(2) @abstractmethod updateLogic: updates the scene state, encapsulating the scene logic. [must be implemented]
+**(2) @abstractmethod updateLogic**: updates the scene state, encapsulating the scene logic. [must be implemented]
 
-(3) @abstractmethod updateDisplay: updates the display for the given scene. [must be implemented]
+**(3) @abstractmethod updateDisplay**: updates the display for the given scene. [must be implemented]
 
-(4) runningLoop: main while loop for the Scene.
+**(4) runningLoop**: main while loop for the Scene.
