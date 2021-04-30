@@ -2,22 +2,22 @@ import sys
 import pygame
 
 from game import *
+from menus import *
+
+HD1080_RESOLUTION = (1920,1080)
+HD720_RESOLUTION = (1280,720)
+WINXP_RESOLUTION = (800, 600)
+HD1080_SMALL_RESOLUTION = (480, 270)
+ATARI_RESOLUTION = (192, 160)
 
 pygame.init()
 pygame.display.set_caption("Caipira Games")
 pygame.display.set_icon(pygame.image.load("caipiragames.png"))
+screen = pygame.display.set_mode(WINXP_RESOLUTION)
 
-game = Game()
-game.playing = True
+# All scenes are instanciated here (in practice, they must be created and instantiated at runtime).
+menu_scene = Menu(screen)
+game_scene = Game(screen)
 
-while game.running:
-    """ 
-    Main game loop.
-    """
-    # for event in pygame.event.get():
-    #     if event.type == pygame.QUIT:
-    #         pygame.quit()
-    #         sys.exit()
-    
-    # game.curr_menu.display_menu()
-    game.runGameLoop()
+menu_scene.running = True
+menu_scene.runningLoop()
