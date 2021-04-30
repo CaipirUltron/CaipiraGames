@@ -1,5 +1,6 @@
 import pygame
 from scene import Scene
+from spiral import Spiral
 
 class Menu(Scene):
     def __init__(self, screen):
@@ -11,6 +12,7 @@ class Menu(Scene):
         self.cursorRect = pygame.Rect(0,0,20,20)
         self.offset = -100
         self.background = pygame.image.load("caipirultron.png")
+        self.spiral = Spiral(self.screen, color=pygame.Color("WHITE"))
 
         self.start_x, self.start_y = self.MID_RES[0], self.MID_RES[1] + 30
         self.options_x, self.options_y = self.MID_RES[0], self.MID_RES[1] + 50
@@ -76,7 +78,7 @@ class Menu(Scene):
         '''
         This method updates the display.
         '''
-        self.screen.fill(pygame.Color("Black"))
+        self.screen.fill(pygame.Color("BLACK"))
         self.draw_text("Main Menu", 20, self.MID_RES[0], self.MID_RES[1] - 20)
 
         # Draws texts
@@ -86,6 +88,9 @@ class Menu(Scene):
 
         # Draws cursor
         self.draw_text(">", 15, self.cursorRect.x, self.cursorRect.y)
-        
+
+        # Draws spirals
+        self.spiral.drawDots()
+
         # Blits screen
         self.screen.blit(self.background, self.MID_RES)

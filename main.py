@@ -1,5 +1,6 @@
 import sys
 import pygame
+import math
 
 from game import *
 from menus import *
