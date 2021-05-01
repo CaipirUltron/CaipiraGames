@@ -2,22 +2,40 @@ import pygame
 from scene import Scene
 from spiral import Spiral
 
-class Menu(Scene):
-    def __init__(self, screen):
-        super().__init__(screen)
+class Button():
+    def __init__(self, x, y, width, height):
+        self.clickable = False
+        self.text = ""
+        self.rect = pygame.Rect(0,0,width,height)
+        self.rect.center = (x,y)
+        self.isPressed = False
+
+class MainMenu(Scene):
+    def __init__(self, game, name):
+        super().__init__(game, name)
 
         self.reset_keys()
         self.cursor_state = "Start"
-        self.MID_RES = (self.width/2, self.height/2)
         self.cursorRect = pygame.Rect(0,0,20,20)
         self.offset = -100
         self.background = pygame.image.load("caipirultron.png")
-        self.spiral = Spiral(self.screen, color=pygame.Color("WHITE"))
+        self.spiral = Spiral(color=pygame.Color("WHITE"))
 
-        self.start_x, self.start_y = self.MID_RES[0], self.MID_RES[1] + 30
-        self.options_x, self.options_y = self.MID_RES[0], self.MID_RES[1] + 50
-        self.credits_x, self.credits_y = self.MID_RES[0], self.MID_RES[1] + 70
+        self.start_x, self.start_y = self.game.center_x, self.game.center_y + 30
+        self.options_x, self.options_y = self.game.center_x, self.game.center_y + 50
+        self.credits_x, self.credits_y = self.game.center_x, self.game.center_y + 70
         self.cursorRect.midtop = (self.start_x + self.offset, self.start_y)
+
+    def draw_text(self, text, size, x, y, font_name=None):
+        if font_name:
+            font = pygame.font.Font(font_name, size)
+        else:
+            font = pygame.font.Font(self.default_font_name, size)
+        
+        text_surface = font.render(text, True, pygame.Color("WHITE"))
+        text_rect = text_surface.get_rect()
+        text_rect.center = (x,y)
+        self.game.screen.blit(text_surface, text_rect)
 
     def reset_keys(self):
         self.UP_KEY, self.DOWN_KEY, self.START_KEY, self.BACK_KEY = False, False, False, False
@@ -65,12 +83,14 @@ class Menu(Scene):
 
         if self.START_KEY:
             if self.cursor_state == "Start":
-                self.running = True
+                '''
+                Transition to "MainGame" scene.
+                '''
+                self.changeScene("MainGame")
             elif self.cursor_state == "Options":
                 pass
             elif self.cursor_state == "Credits":
                 pass
-            self.running = False
 
         self.reset_keys()
 
@@ -78,8 +98,8 @@ class Menu(Scene):
         '''
         This method updates the display.
         '''
-        self.screen.fill(pygame.Color("BLACK"))
-        self.draw_text("Main Menu", 20, self.MID_RES[0], self.MID_RES[1] - 20)
+        self.game.screen.fill(pygame.Color("BLACK"))
+        self.draw_text("Main Menu", 20, self.game.center_x, self.game.center_y - 20)
 
         # Draws texts
         self.draw_text("Start Game",20, self.start_x, self.start_y)
@@ -90,7 +110,4 @@ class Menu(Scene):
         self.draw_text(">", 15, self.cursorRect.x, self.cursorRect.y)
 
         # Draws spirals
-        self.spiral.drawDots()
-
-        # Blits screen
-        self.screen.blit(self.background, self.MID_RES)
+        self.spiral.drawDots(self.game.screen, self.game.center_x, self.game.center_y)

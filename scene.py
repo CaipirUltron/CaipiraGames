@@ -6,16 +6,17 @@ class Scene(ABC):
     Basic class for a game scene. Always contains at least an eventHandler and a runningLoop method.
     Used as a parent class for game menus, screens and for the game itself.
     '''
-    def __init__(self, screen, running=False, fps=30, default_font_name=pygame.font.get_default_font()):
-        self.screen = screen
-        self.width = self.screen.get_width()
-        self.height = self.screen.get_height()
-        self.running = running
-        self.fps = fps
-        self.clock = pygame.time.Clock()
+    def __init__(self, game, name, default_font_name=pygame.font.get_default_font()):
+        self.game = game
+        self.name = name
+        self.running = False
         self.default_font_name = default_font_name
-        self.events = []
 
+    def changeScene(self, scene_name):
+        self.game.setActiveScene(scene_name)
+        print(self.game.active_scene.name + " is active.")
+        self.running = False
+        
     @abstractmethod
     def eventHandler(self, event):
         '''
@@ -41,6 +42,7 @@ class Scene(ABC):
         '''
         Main loop for the scene.
         '''
+        self.running = True
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -49,19 +51,6 @@ class Scene(ABC):
                     break
                 self.eventHandler(event)
             self.updateLogic()
-
             self.updateDisplay()
             pygame.display.update()
-            self.clock.tick(self.fps)
-
-    def draw_text(self, text, size, x, y, font_name=None):
-
-        if font_name:
-            font = pygame.font.Font(font_name, size)
-        else:
-            font = pygame.font.Font(self.default_font_name, size)
-        
-        text_surface = font.render(text, True, pygame.Color("WHITE"))
-        text_rect = text_surface.get_rect()
-        text_rect.center = (x,y)
-        self.screen.blit(text_surface, text_rect)
+            self.game.clock.tick(self.game.fps)

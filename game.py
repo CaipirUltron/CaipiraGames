@@ -1,29 +1,54 @@
 import pygame
 
-from scene import Scene
-from characters import Player
+HD1080_RESOLUTION = (1920,1080)
+HD720_RESOLUTION = (1280,720)
+WINXP_RESOLUTION = (800, 600)
+HD1080_SMALL_RESOLUTION = (480, 270)
+ATARI_RESOLUTION = (192, 160)
 
-class Game(Scene):
-    """ 
-    General game class, encapsulating the game state.
-    """
-    def __init__(self, screen):
-        super().__init__(screen)
-        
-        self.deltaTime = 1/self.fps
-        self.player = Player("sprites/player", (self.width, self.height), self.deltaTime)
+class Game():
+    '''
+    Main game class, encapsulating every game scene (menus, transitions, loading screens, the game itself, etc).
+    Also contains main game parameters.
+    '''
+    def __init__(self):
+        pygame.init()
+        pygame.display.set_caption("Caipira Games")
+        pygame.display.set_icon(pygame.image.load("caipiragames.png"))
 
-    def eventHandler(self, event):
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                self.player.startMovement(event.key)
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                self.player.endMovement(event.key)
+        self.screen = pygame.display.set_mode(HD1080_RESOLUTION)
+        self.width = self.screen.get_width()
+        self.height = self.screen.get_height()
 
-    def updateLogic(self):
-        self.player.update()
+        self.center_x = self.width/2
+        self.center_y = self.height/2
 
-    def updateDisplay(self):
-        self.screen.fill(pygame.Color("Black"))
-        self.player.draw(self.screen)
+        self.fps = 60
+        self.clock = pygame.time.Clock()
+
+        self.scenes = [] # a list with the game scenes
+        self.active_scene = None # current active scene
+
+    def addScene(self, scene):
+        '''
+        Adds a new scene object to the game.
+        '''
+        self.scenes.append(scene)
+
+    def removeScene(self, scene_name):
+        '''
+        Removes the scene with name "scene_name" from the game.
+        '''
+        for scene in self.scenes:
+            if scene.name == scene_name:
+                self.scenes.remove(scene)
+                break
+
+    def setActiveScene(self, scene_name):
+        '''
+        Sets a scene from self.scenes with name "scene name" as the active scene.
+        '''
+        for scene in self.scenes:
+            if scene.name == scene_name:
+                self.active_scene = scene
+                break

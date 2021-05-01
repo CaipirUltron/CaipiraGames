@@ -1,24 +1,17 @@
-import sys
-import pygame
-import math
-
 from game import *
-from menus import *
+from mainmenu import *
+from maingame import *
 
-HD1080_RESOLUTION = (1920,1080)
-HD720_RESOLUTION = (1280,720)
-WINXP_RESOLUTION = (800, 600)
-HD1080_SMALL_RESOLUTION = (480, 270)
-ATARI_RESOLUTION = (192, 160)
+myGame = Game()
 
-pygame.init()
-pygame.display.set_caption("Caipira Games")
-pygame.display.set_icon(pygame.image.load("caipiragames.png"))
-screen = pygame.display.set_mode(WINXP_RESOLUTION)
+mainMenu = MainMenu(myGame, "MainMenu")
+mainGame = MainGame(myGame, "MainGame")
 
-# All scenes are instanciated here (in practice, they must be created and instantiated at runtime).
-menu_scene = Menu(screen)
-game_scene = Game(screen)
+myGame.addScene(mainMenu)
+myGame.addScene(mainGame)
 
-menu_scene.running = True
-menu_scene.runningLoop()
+myGame.setActiveScene("MainMenu")
+
+if __name__ == '__main__':
+    while True:
+        myGame.active_scene.runningLoop()
