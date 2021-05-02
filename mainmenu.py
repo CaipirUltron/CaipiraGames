@@ -2,40 +2,52 @@ import pygame
 from scene import Scene
 from spiral import Spiral
 
+default_color = pygame.Color("BLACK")
+default_font_name = pygame.font.get_default_font()
+
+class Cursor():
+    def __init__(self, cursor_text):
+        self.text = cursor_text
+
 class Button():
-    def __init__(self, x, y, width, height):
-        self.clickable = False
-        self.text = ""
-        self.rect = pygame.Rect(0,0,width,height)
+    def __init__(self, text='', text_color=default_color, x=0.0, y=0.0, font_name=None, font_size=12):
+        self.pressed = False
+
+        if font_name:
+            self.font = pygame.font.Font(font_name, font_size)
+        else:
+            self.font = pygame.font.Font(default_font_name, font_size)
+
+        self.setText(text, text_color)
+        self.draw(x, y)
+
+    def setText(self, text, text_color=default_color):
+        self.text = text
+        self.text_color = text_color
+        self.text_surf = self.font.render(self.text, True, self.text_color)
+        self.rect = self.text_surf.get_rect()
+
+    def draw(self, x, y):
         self.rect.center = (x,y)
-        self.isPressed = False
+        self.game.screen.blit(self.text_surf, self.rect)
 
 class MainMenu(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
 
+        self.buttons = []
+        self.buttons.append( Button(text='Start Game', x=self.game.center_x, y=self.game.center_y + 30) )
+        self.buttons.append( Button(text='Options', x=self.game.center_x, y=self.game.center_y + 50) )
+        self.buttons.append( Button(text='Credits', x=self.game.center_x, y=self.game.center_y + 70) )
+
+        self.cursor = Button(text='>', x=self.game.center_x, y=self.game.center_y + 30)
+
         self.reset_keys()
         self.cursor_state = "Start"
         self.cursorRect = pygame.Rect(0,0,20,20)
-        self.offset = -100
-        self.background = pygame.image.load("caipirultron.png")
+        self.cursor_offset = -100
         self.spiral = Spiral(color=pygame.Color("WHITE"))
-
-        self.start_x, self.start_y = self.game.center_x, self.game.center_y + 30
-        self.options_x, self.options_y = self.game.center_x, self.game.center_y + 50
-        self.credits_x, self.credits_y = self.game.center_x, self.game.center_y + 70
-        self.cursorRect.midtop = (self.start_x + self.offset, self.start_y)
-
-    def draw_text(self, text, size, x, y, font_name=None):
-        if font_name:
-            font = pygame.font.Font(font_name, size)
-        else:
-            font = pygame.font.Font(self.default_font_name, size)
-        
-        text_surface = font.render(text, True, pygame.Color("WHITE"))
-        text_rect = text_surface.get_rect()
-        text_rect.center = (x,y)
-        self.game.screen.blit(text_surface, text_rect)
+        self.cursorRect.midtop = (self.start_x + self.cursor_offset, self.start_y)
 
     def reset_keys(self):
         self.UP_KEY, self.DOWN_KEY, self.START_KEY, self.BACK_KEY = False, False, False, False

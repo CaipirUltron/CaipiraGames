@@ -6,11 +6,10 @@ class Scene(ABC):
     Basic class for a game scene. Always contains at least an eventHandler and a runningLoop method.
     Used as a parent class for game menus, screens and for the game itself.
     '''
-    def __init__(self, game, name, default_font_name=pygame.font.get_default_font()):
+    def __init__(self, game, name):
         self.game = game
         self.name = name
         self.running = False
-        self.default_font_name = default_font_name
 
     def changeScene(self, scene_name):
         self.game.setActiveScene(scene_name)
