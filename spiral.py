@@ -16,7 +16,7 @@ class Dot():
         self.dist+=self.increase
 
 class Spiral():
-    def __init__(self, numberDots=500, thickness=5, size=500, color=pygame.Color("BLACK")):
+    def __init__(self, numberDots=500, thickness=1, size=300, color=pygame.Color("BLACK")):
         self.numberDots = numberDots
         self.thickness = thickness
         self.size = size
@@ -31,8 +31,8 @@ class Spiral():
             pygame.draw.line(screen,self.color,(self.dots[number].x,self.dots[number].y),(self.dots[number-1].x,self.dots[number-1].y),self.thickness)
 
     def drawDots(self, screen, center_x, center_y):
-        number=0
+        number = 0
         for dot in self.dots:
             self.draw(number, screen)
             dot.move(center_x, center_y)
-            number+=1
+            number += 1

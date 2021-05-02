@@ -2,7 +2,7 @@ import pygame
 from scene import Scene
 from spiral import Spiral
 
-default_color = pygame.Color("BLACK")
+default_text_color = pygame.Color("WHITE")
 default_font_name = pygame.font.get_default_font()
 
 class Cursor():
@@ -10,8 +10,9 @@ class Cursor():
         self.text = cursor_text
 
 class Button():
-    def __init__(self, text='', text_color=default_color, x=0.0, y=0.0, font_name=None, font_size=12):
+    def __init__(self, text='', text_color=default_text_color, x=0.0, y=0.0, font_name=None, font_size=12):
         self.pressed = False
+        self.x, self.y = x, y
 
         if font_name:
             self.font = pygame.font.Font(font_name, font_size)
@@ -19,35 +20,42 @@ class Button():
             self.font = pygame.font.Font(default_font_name, font_size)
 
         self.setText(text, text_color)
-        self.draw(x, y)
 
-    def setText(self, text, text_color=default_color):
+    def setText(self, text, text_color=default_text_color):
         self.text = text
         self.text_color = text_color
         self.text_surf = self.font.render(self.text, True, self.text_color)
-        self.rect = self.text_surf.get_rect()
+        self.rect = self.text_surf.get_rect()        
 
-    def draw(self, x, y):
-        self.rect.center = (x,y)
-        self.game.screen.blit(self.text_surf, self.rect)
+    def draw(self, screen):
+        self.rect.center = (self.x,self.y)
+        screen.blit(self.text_surf, self.rect)
 
 class MainMenu(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
 
-        self.buttons = []
-        self.buttons.append( Button(text='Start Game', x=self.game.center_x, y=self.game.center_y + 30) )
-        self.buttons.append( Button(text='Options', x=self.game.center_x, y=self.game.center_y + 50) )
-        self.buttons.append( Button(text='Credits', x=self.game.center_x, y=self.game.center_y + 70) )
+        self.center_x = 150
+        self.center_y = self.game.center_y/2
 
-        self.cursor = Button(text='>', x=self.game.center_x, y=self.game.center_y + 30)
+        self.title = Button(text='Caipira Game', font_size=20, x=self.center_x, y=self.center_y)
+
+        self.buttons = {
+            "Start Game": Button(text="Start Game", x=self.center_x, y=self.center_y + 30),
+            "Options":    Button(text="Options", x=self.center_x, y=self.center_y + 50),
+            "Credits":    Button(text="Credits", x=self.center_x, y=self.center_y + 70)
+        }
+
+        self.cursor = Button(text='>')
+
+        self.cursor_offset = -50
+        self.cursor_state = "Start Game"
+        self.cursor.x = self.buttons[self.cursor_state].x + self.cursor_offset
+        self.cursor.y = self.buttons[self.cursor_state].y
+
+        self.spiral = Spiral(color=pygame.Color("WHITE"), size=self.game.height/2)
 
         self.reset_keys()
-        self.cursor_state = "Start"
-        self.cursorRect = pygame.Rect(0,0,20,20)
-        self.cursor_offset = -100
-        self.spiral = Spiral(color=pygame.Color("WHITE"))
-        self.cursorRect.midtop = (self.start_x + self.cursor_offset, self.start_y)
 
     def reset_keys(self):
         self.UP_KEY, self.DOWN_KEY, self.START_KEY, self.BACK_KEY = False, False, False, False
@@ -73,36 +81,36 @@ class MainMenu(Scene):
         This method encapsulates the Scene logic, and is responsible for updating the Scene state.
         '''
         if self.DOWN_KEY:
-            if self.cursor_state == "Start":
-                self.cursorRect.midtop = (self.options_x + self.offset, self.options_y)
+            if self.cursor_state == "Start Game":
+                self.cursor.y = self.buttons["Options"].y
                 self.cursor_state = "Options"
             elif self.cursor_state == "Options":
-                self.cursorRect.midtop = (self.credits_x + self.offset, self.credits_y)
+                self.cursor.y = self.buttons["Credits"].y
                 self.cursor_state = "Credits"
             elif self.cursor_state == "Credits":
-                self.cursorRect.midtop = (self.start_x + self.offset, self.start_y)
-                self.cursor_state = "Start"
+                self.cursor.y = self.buttons["Start Game"].y
+                self.cursor_state = "Start Game"
         elif self.UP_KEY:
             if self.cursor_state == "Start":
-                self.cursorRect.midtop = (self.credits_x + self.offset, self.credits_y)
+                self.cursor.y = self.buttons["Credits"].y
                 self.cursor_state = "Credits"
             elif self.cursor_state == "Options":
-                self.cursorRect.midtop = (self.start_x + self.offset, self.start_y)
-                self.cursor_state = "Start"
+                self.cursor.y = self.buttons["Start Game"].y
+                self.cursor_state = "Start Game"
             elif self.cursor_state == "Credits":
-                self.cursorRect.midtop = (self.options_x + self.offset, self.options_y)
+                self.cursor.y = self.buttons["Options"].y
                 self.cursor_state = "Options"
 
         if self.START_KEY:
-            if self.cursor_state == "Start":
+            if self.cursor_state == "Start Game":
                 '''
                 Transition to "MainGame" scene.
                 '''
                 self.changeScene("MainGame")
             elif self.cursor_state == "Options":
-                pass
+                self.changeScene("MainGame")
             elif self.cursor_state == "Credits":
-                pass
+                self.changeScene("MainGame")
 
         self.reset_keys()
 
@@ -111,15 +119,15 @@ class MainMenu(Scene):
         This method updates the display.
         '''
         self.game.screen.fill(pygame.Color("BLACK"))
-        self.draw_text("Main Menu", 20, self.game.center_x, self.game.center_y - 20)
+
+        self.title.draw(self.game.screen)
 
         # Draws texts
-        self.draw_text("Start Game",20, self.start_x, self.start_y)
-        self.draw_text("Options",20, self.options_x, self.options_y)
-        self.draw_text("Credits",20, self.credits_x, self.credits_y)
+        for key in self.buttons:
+            self.buttons[key].draw(self.game.screen)
 
         # Draws cursor
-        self.draw_text(">", 15, self.cursorRect.x, self.cursorRect.y)
+        self.cursor.draw(self.game.screen)
 
         # Draws spirals
         self.spiral.drawDots(self.game.screen, self.game.center_x, self.game.center_y)

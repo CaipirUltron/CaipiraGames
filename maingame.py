@@ -21,6 +21,7 @@ class MainGame(Scene):
                 Transition to "MainMenu" scene.
                 '''
                 self.changeScene("MainMenu")
+
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                 self.player.endMovement(event.key)

@@ -16,7 +16,7 @@ class Game():
         pygame.display.set_caption("Caipira Games")
         pygame.display.set_icon(pygame.image.load("caipiragames.png"))
 
-        self.screen = pygame.display.set_mode(WINXP_RESOLUTION)
+        self.screen = pygame.display.set_mode(HD720_RESOLUTION)
         self.width = self.screen.get_width()
         self.height = self.screen.get_height()
 
