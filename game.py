@@ -1,5 +1,6 @@
 import pygame
 
+PHONE_RESOLUTION = (1440,2960)
 HD1080_RESOLUTION = (1920,1080)
 HD720_RESOLUTION = (1280,720)
 WINXP_RESOLUTION = (800, 600)
@@ -23,7 +24,7 @@ class Game():
         self.center_x = self.width/2
         self.center_y = self.height/2
 
-        self.fps = 60
+        self.fps = 60.0
         self.clock = pygame.time.Clock()
 
         self.scenes = [] # a list with the game scenes

@@ -10,23 +10,21 @@ class MainGame(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
         self.deltaTime = 1/self.game.fps
-        self.player = Player("sprites/player", (self.game.width, self.game.height), self.deltaTime)
+        print(self.deltaTime)
+        self.player = Player("sprites/player", self.deltaTime)
 
     def eventHandler(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                 self.player.startMovement(event.key)
             if event.key == pygame.K_ESCAPE:
-                '''
-                Transition to "MainMenu" scene.
-                '''
                 self.changeScene("MainMenu")
-
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                 self.player.endMovement(event.key)
 
     def updateLogic(self):
+        self.player.followMouse(float(self.mouse_x), float(self.mouse_y))
         self.player.update()
 
     def updateDisplay(self):

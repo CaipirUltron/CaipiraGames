@@ -44,7 +44,7 @@ class MainMenu(Scene):
         self.center_x = 150
         self.center_y = self.game.center_y/2
 
-        self.title = Button(text='Caipira Game', font_size=24, x=self.center_x, y=self.center_y - 20)
+        self.title = Button(text='Free Squid', font_size=24, x=self.center_x, y=self.center_y - 20)
 
         self.buttons = {
             "Start Game": Button(text="Start Game", x=self.center_x, y=self.center_y + 30),
