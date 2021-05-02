@@ -13,7 +13,6 @@ class Scene(ABC):
 
     def changeScene(self, scene_name):
         self.game.setActiveScene(scene_name)
-        print(self.game.active_scene.name + " is active.")
         self.running = False
         
     @abstractmethod
@@ -49,6 +48,7 @@ class Scene(ABC):
                     pygame.quit()
                     break
                 self.eventHandler(event)
+            self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
             self.updateLogic()
             self.updateDisplay()
             pygame.display.update()
