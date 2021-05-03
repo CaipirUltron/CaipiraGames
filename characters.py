@@ -75,10 +75,10 @@ class Player(Character):
         error_x = mouse_x - self.x
         error_y = mouse_y - self.y
         norm_error = ( error_x**2 + error_y**2 )**0.5
-        if norm_error > 60:
+        if norm_error > 100:
             self.k = 2.0
         else:
-            self.k = 10.0
+            self.k = 20.0
         self.speed_x = self.k*error_x
         self.speed_y = self.k*error_y
 
