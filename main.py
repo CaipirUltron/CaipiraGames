@@ -1,6 +1,6 @@
-from game import *
-from mainmenu import *
-from maingame import *
+from classes.game import *
+from classes.main_menu import *
+from classes.game import *
 
 myGame = Game()
 
