@@ -1,3 +1,5 @@
+from classes.character import Character
+
 class Enemy(Character):
     """ 
     Class for an enemy character.

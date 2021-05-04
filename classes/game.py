@@ -19,7 +19,7 @@ class Game():
     def __init__(self):
         pygame.init()
         pygame.display.set_caption("Caipira Games")
-        pygame.display.set_icon(pygame.image.load("images\caipiragames.png"))
+        pygame.display.set_icon(pygame.image.load("./images/caipiragames.png"))
 
         self.screen = pygame.display.set_mode(HD720_RESOLUTION)
         self.width = self.screen.get_width()
