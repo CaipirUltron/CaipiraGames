@@ -1,11 +1,11 @@
-from classes.game import *
-from classes.main_menu import *
-from classes.game import *
+from classes.game import Game
+from classes.scenes.menus.main_menu import MainMenu
+from classes.scenes.game_scenes.game_scene import GameScene
 
 myGame = Game()
 
 mainMenu = MainMenu(myGame, "MainMenu")
-mainGame = MainGame(myGame, "MainGame")
+mainGame = GameScene(myGame, "GameScene")
 
 myGame.addScene(mainMenu)
 myGame.addScene(mainGame)
