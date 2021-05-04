@@ -1,15 +1,5 @@
-import pygame, pymunk
-import sys, os, os.path
-
-def get_sprites(sprite_folder):
-    """ 
-    Method for getting sprites from a given folder. Returns a list of 
-    """
-    sprites = []
-    for file_name in os.listdir(sprite_folder):
-        file_path = sprite_folder+"/"+file_name
-        sprites.append( pygame.image.load(file_path) )
-    return sprites
+import os
+import pygame
 
 class Character():
     """ 
@@ -66,44 +56,12 @@ class Character():
     def draw(self, screen):
         screen.blit(self.current_sprite, self.rect)
 
-
-class Player(Character):
+def get_sprites(sprite_folder):
     """ 
-    Class for the player character. The implementation of player controls can be found here.
+    Method for getting sprites from a given folder. Returns a list of 
     """
-    def followMouse(self, mouse_x, mouse_y):
-        error_x = mouse_x - self.x
-        error_y = mouse_y - self.y
-        norm_error = ( error_x**2 + error_y**2 )**0.5
-        if norm_error > 100:
-            self.k = 2.0
-        else:
-            self.k = 20.0
-        self.speed_x = self.k*error_x
-        self.speed_y = self.k*error_y
-
-    def startMovement(self, pressed_key):
-        if pressed_key == pygame.K_LEFT:
-            self.speed_x += -1
-        if pressed_key == pygame.K_RIGHT:
-            self.speed_x += +1
-        if pressed_key == pygame.K_UP:
-            self.speed_y += -1
-        if pressed_key == pygame.K_DOWN:
-            self.speed_y += +1
-
-    def endMovement(self, released_key):
-        if released_key == pygame.K_LEFT:
-            self.speed_x -= -1
-        if released_key == pygame.K_RIGHT:
-            self.speed_x -= +1
-        if released_key == pygame.K_UP:
-            self.speed_y -= -1
-        if released_key == pygame.K_DOWN:
-            self.speed_y -= +1
-
-class Enemy(Character):
-    """ 
-    Class for an enemy character.
-    The implementation of enemy controls and AI can be found here.
-    """
+    sprites = []
+    for file_name in os.listdir(sprite_folder):
+        file_path = sprite_folder+"/"+file_name
+        sprites.append( pygame.image.load(file_path) )
+    return sprites
