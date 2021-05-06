@@ -1,10 +1,11 @@
 import pygame
 from pygame.locals import *
-import math
+import math, os, csv
 import numpy as np
 
 from classes.scenes import Scene
 
+##############################################################################################
 class LevelEditor(Scene):
     """ 
     Class for polygonal tile level editor.
@@ -26,7 +27,8 @@ class LevelEditor(Scene):
         self.curr_coords = None
         self.paint_value = False
 
-        self.level = Level(16, 2000, 70, center_x=self.game.center_x, center_y=-3*self.game.center_y)
+        self.level = TileMap(16, 2000, 70, center_x=self.game.center_x, center_y=-3*self.game.center_y)
+        print(self.level.num_layers, self.level.num_sides)
 
     def eventHandler(self, event):
         if event.type == pygame.KEYDOWN:
@@ -49,6 +51,8 @@ class LevelEditor(Scene):
                 self.first_selected = True
             if event.button == 2:
                 self.scroll_holding = False
+        if event.type == pygame.QUIT:
+            self.level.create_csv('mymap')
 
     def updateLogic(self):
         '''
@@ -79,16 +83,22 @@ class LevelEditor(Scene):
 
     def updateDisplay(self):
         self.game.screen.fill(pygame.Color("Black"))
-        self.level.drawPoints(self.game.screen)
-        self.level.drawLevel(self.game.screen)
+        self.level.drawCorners(self.game.screen)
+        self.level.drawMap(self.game.screen)
 
-
-class Level:
+##############################################################################################
+class TileMap():
+    '''
+    Tile map functionality.
+    '''
     def __init__(self, tile_size, level_radius, level_height, center_x=0.0, center_y=0.0):
         self.center_x, self.center_y = center_x, center_y
         self.setLevel(tile_size, level_radius, level_height)
 
     def setLevel(self, tile_size, level_radius, num_layers):
+        '''
+        Initially configures the map according to tile size, level radius and chosen number of layers.
+        '''
         if type(tile_size) != int:
             raise Exception("Tile size must be and integer.")
         if type(num_layers) != int:
@@ -100,7 +110,6 @@ class Level:
         self.level_radius = level_radius # level height, in pixels
         self.num_layers = num_layers     # number of layers
 
-        # Computes the required number of polygon sides
         self.height_offset = self.level_radius - self.num_layers*self.tile_size
         self.num_sides = round(math.pi/math.atan2(self.tile_size, 2*self.height_offset))
         if self.num_sides < 3:
@@ -108,15 +117,17 @@ class Level:
         self.height_offset = self.tile_size/(2*math.tan(math.pi/self.num_sides))
         self.level_radius = self.height_offset + self.num_layers*self.tile_size
         self.angle = 2*math.pi/self.num_sides
-        self.grid = [[False for i in range(self.num_layers)] for j in range(self.num_sides)]
 
-        # Computes the level distortion
+        self.grid = [[False for i in range(self.num_layers)] for j in range(self.num_sides)] # grid initialization
+
         self.level_distortion = 2*self.num_layers*math.tan(math.pi/self.num_sides)
 
-        # Computes grid points and move center
-        self.computePoints()
+        self.computeCorners()
 
-    def computePoints(self):
+    def computeCorners(self):
+        '''
+        Computes the corner points of the polygonal grid.
+        '''
         self.tiles_x, self.tiles_y = [], []
         self.num_points = self.num_sides*(self.num_layers+1)
         for angle_index in range(self.num_sides):
@@ -125,12 +136,18 @@ class Level:
                 self.tiles_y.append( self.center_y + ( self.height_offset + self.tile_size*level_index )*math.sin( self.angle*angle_index - self.angle/2 ) )
 
     def moveCenter(self, x, y):
+        '''
+        Moves the entire grid by moving the center coordinates.
+        '''
         self.center_x += x
         self.center_y += y
         self.tiles_x = (np.array(self.tiles_x)+x).tolist()
         self.tiles_y = (np.array(self.tiles_y)+y).tolist()
 
     def getRadial(self, x, y):
+        '''
+        Converts cartesian coords (x,y) to polar coords (radius, angle).
+        '''
         radius = math.sqrt( (x - self.center_x)**2 + (y - self.center_y)**2 )
         angle = math.atan2( y - self.center_y, x - self.center_x )
         if angle < 0:
@@ -138,7 +155,10 @@ class Level:
         return radius, angle
 
     def getIndex(self, radius, angle):
-        i_index, j_index = 0, 0
+        '''
+        Returns the grid indexes at position (radius,angle), in polar coordinates. If the position is outside of the grid, returns None.
+        '''
+        i_index, j_index = None, None
         for k in range(self.num_sides):
             if angle > self.angle*k - self.angle/2 and angle < self.angle*(k+1) - self.angle/2:
                 j_index = k
@@ -147,27 +167,38 @@ class Level:
             if radius > self.height_offset + self.tile_size*k  and radius < self.height_offset + self.tile_size*(k+1):
                 i_index = k
                 break
-        return i_index, j_index
+        if i_index:
+            return i_index, j_index
+        else:
+            return None
 
     def getGrid(self, x, y):
+        '''
+        Returns the grid value at position (x,y). If the position is outside of the grid, returns None.
+        '''
         radius, angle = self.getRadial(x, y)
         if radius > self.height_offset and radius < self.level_radius:
             return self.getIndex(radius, angle)
         else:
             return None
 
-    def setGrid(self, i, j, *args):
-        # radius, angle = self.getRadial(x, y)
-        # if radius > self.height_offset and radius < self.level_radius:
-        #     i, j = self.getIndex(radius, angle)
-        if len(args) > 0:
-            for arg in args:
-                self.grid[j][i] = arg
+    def setGrid(self, i, j, *values):
+        '''
+        Sets the grid value at (i,j) to value [True/False]
+        If no argument is passed, negates the current value.
+        '''
+        if len(values) > 0:
+            for value in values:
+                self.grid[j][i] = value
         else:
             self.grid[j][i] = not self.grid[j][i]
         return self.grid[j][i]
 
-    def drawLevel(self, screen):
+    def drawMap(self, screen):
+        '''
+        Draws polygons using the corner coordinates.
+        This method can be greatly optimized by drawing the minimum amount of polygons required to represent the map, instead of simply drawing one polygon per tile.
+        '''
         for j in range(self.num_sides):
             for i in range(self.num_layers):
                 if self.grid[j][i]:
@@ -189,7 +220,25 @@ class Level:
 
                     pygame.draw.polygon( screen, (255,0,0), (p1,p2,p3,p4) )
 
-    def drawPoints(self, screen):
+    def drawCorners(self, screen):
+        '''
+        Draws the corner points at the screen.
+        '''
         pygame.draw.circle(screen, (255, 0, 0), ( self.center_x, self.center_y ), 1 )
         for i in range(self.num_points):
             pygame.draw.circle(screen, (255, 0, 0), ( self.tiles_x[i], self.tiles_y[i] ), 1 )
+
+    def load_csv(self, filename):
+        self.grid = []
+        with open(os.path.join(filename)) as data:
+            data = csv.reader(data, delimiter=',')
+            for row in data:
+                self.grid.append(list(row))
+
+    def create_csv(self, filename):
+        with open(filename+str('.csv'), mode='w') as file:
+            file_writer = csv.writer(file, delimiter=',')
+            print("Number of sides = " + str(self.num_sides))
+            for j in range(self.num_sides):
+                print(len(self.grid[j]))
+                file_writer.writerow(self.grid[j])

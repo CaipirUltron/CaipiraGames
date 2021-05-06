@@ -44,11 +44,11 @@ class Scene(ABC):
         self.running = True
         while self.running:
             for event in pygame.event.get():
+                self.eventHandler(event)
                 if event.type == pygame.QUIT:
                     self.running = False
                     pygame.quit()
                     break
-                self.eventHandler(event)
             self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
             self.updateLogic()
             self.updateDisplay()
