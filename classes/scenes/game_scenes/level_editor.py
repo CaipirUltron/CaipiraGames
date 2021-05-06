@@ -15,13 +15,18 @@ class LevelEditor(Scene):
         self.scroll_speed = 100.0
 
         self.clicked = False
-        self.tile_changed = False
+        self.changed = False
         self.scroll_holding = False
+        self.first_selected = True
 
         self.last_mouse_pos = np.array([self.mouse_x, self.mouse_y])
-        self.current_mouse_pos = np.array([self.mouse_x, self.mouse_y])
+        self.curr_mouse_pos = np.array([self.mouse_x, self.mouse_y])
 
-        self.polygonalLevel = PolygonalLevel(32, 2000, 50, center_x=self.game.center_x, center_y=-4*self.game.center_y)
+        self.last_coords = None
+        self.curr_coords = None
+        self.paint_value = False
+
+        self.level = Level(16, 2000, 70, center_x=self.game.center_x, center_y=-3*self.game.center_y)
 
     def eventHandler(self, event):
         if event.type == pygame.KEYDOWN:
@@ -40,28 +45,45 @@ class LevelEditor(Scene):
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
                 self.clicked = False
+                self.changed = False
+                self.first_selected = True
             if event.button == 2:
                 self.scroll_holding = False
 
     def updateLogic(self):
-        # Scroll level
-        self.last_mouse_pos = self.current_mouse_pos
-        self.current_mouse_pos = np.array([self.mouse_x, self.mouse_y])
+        '''
+        Scrolling logic
+        '''
+        self.last_mouse_pos = self.curr_mouse_pos
+        self.curr_mouse_pos = np.array([self.mouse_x, self.mouse_y])
         if self.scroll_holding:
-            self.error = self.current_mouse_pos - self.last_mouse_pos
-            self.polygonalLevel.moveCenter(self.error[0], self.error[1])
+            self.error = self.curr_mouse_pos - self.last_mouse_pos
+            self.level.moveCenter(self.error[0], self.error[1])
 
-        # Paint current polygon
-        if self.clicked:
-            self.polygonalLevel.setGrid(self.mouse_x, self.mouse_y)
-            self.clicked = False
+        '''
+        Painting polygons.
+        '''
+        self.last_coords = self.curr_coords
+        self.curr_coords = self.level.getGrid(self.mouse_x, self.mouse_y)
+
+        if self.curr_coords and self.clicked and self.first_selected:
+            self.paint_value = self.level.grid[self.curr_coords[1]][self.curr_coords[0]]
+            self.first_selected = False
+
+        if self.curr_coords and self.clicked and (not self.changed):
+            self.level.setGrid(*self.curr_coords, not self.paint_value)
+            self.changed = True
+
+        if (self.curr_coords != self.last_coords):
+            self.changed = False
 
     def updateDisplay(self):
         self.game.screen.fill(pygame.Color("Black"))
-        self.polygonalLevel.drawPoints(self.game.screen)
-        self.polygonalLevel.drawLevel(self.game.screen)
+        self.level.drawPoints(self.game.screen)
+        self.level.drawLevel(self.game.screen)
 
-class PolygonalLevel():
+
+class Level:
     def __init__(self, tile_size, level_radius, level_height, center_x=0.0, center_y=0.0):
         self.center_x, self.center_y = center_x, center_y
         self.setLevel(tile_size, level_radius, level_height)
@@ -134,11 +156,16 @@ class PolygonalLevel():
         else:
             return None
 
-    def setGrid(self, x, y):
-        radius, angle = self.getRadial(x, y)
-        if radius > self.height_offset and radius < self.level_radius:
-            i, j = self.getIndex(radius, angle)
+    def setGrid(self, i, j, *args):
+        # radius, angle = self.getRadial(x, y)
+        # if radius > self.height_offset and radius < self.level_radius:
+        #     i, j = self.getIndex(radius, angle)
+        if len(args) > 0:
+            for arg in args:
+                self.grid[j][i] = arg
+        else:
             self.grid[j][i] = not self.grid[j][i]
+        return self.grid[j][i]
 
     def drawLevel(self, screen):
         for j in range(self.num_sides):
