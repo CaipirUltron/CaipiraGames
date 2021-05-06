@@ -1,17 +1,22 @@
-from classes.game import Game
-from classes.scenes.menus.main_menu import MainMenu
-from classes.scenes.game_scenes.game_scene import GameScene
+from classes import Game
+from classes.scenes.menus import MainMenu
+from classes.scenes.game_scenes import LevelEditor, SquidGame
 
 myGame = Game()
 
 mainMenu = MainMenu(myGame, "MainMenu")
-mainGame = GameScene(myGame, "GameScene")
+
+# Comment out to execute the Squid Game
+mainGame = LevelEditor(myGame, "GameScene")
+
+# Comment out to execute the Circular Tile Editor
+# mainGame = SquidGame(myGame, "GameScene")
 
 myGame.addScene(mainMenu)
 myGame.addScene(mainGame)
 
 myGame.setActiveScene("MainMenu")
-# myGame.setActiveScene("MainGame")
+# myGame.setActiveScene("GameScene")
 
 if __name__ == '__main__':
     while True:

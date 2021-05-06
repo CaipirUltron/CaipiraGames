@@ -1,4 +1,4 @@
-from classes.character import Character
+from classes.characters import Character
 
 class Enemy(Character):
     """ 

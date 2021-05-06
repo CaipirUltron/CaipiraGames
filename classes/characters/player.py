@@ -1,4 +1,5 @@
-from classes.character import Character
+import pygame
+from classes.characters import Character
 
 class Player(Character):
     """ 

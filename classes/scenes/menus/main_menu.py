@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 import math
 
-from classes.scene import Scene
+from classes.scenes import Scene
 
 default_text_color = pygame.Color("WHITE")
 default_font_name = pygame.font.get_default_font()

@@ -10,6 +10,7 @@ class Scene(ABC):
         self.game = game
         self.name = name
         self.running = False
+        self.mouse_x, self.mouse_y = 0.0, 0.0
 
     def changeScene(self, scene_name):
         self.game.setActiveScene(scene_name)
