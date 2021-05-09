@@ -5,7 +5,6 @@ import numpy as np
 
 from classes.scenes import Scene
 
-
 class LevelEditor(Scene):
     """ 
     Class for polygonal tile level editor.
@@ -15,10 +14,13 @@ class LevelEditor(Scene):
         self.deltaTime = 1/self.game.fps
         self.scroll_speed = 100.0
 
-        self.clicked = False
-        self.changed = False
+        self.left_holding = False
+        self.right_holding = False
         self.scroll_holding = False
-        self.first_selected = True
+        self.first_selected = False
+
+        self.changed = False
+        self.mouse_x, self.mouse_y = 0.0, 0.0
 
         self.last_mouse_pos = np.array([self.mouse_x, self.mouse_y])
         self.curr_mouse_pos = np.array([self.mouse_x, self.mouse_y])
@@ -29,33 +31,44 @@ class LevelEditor(Scene):
 
         self.level = TileMap(16, 2000, 70, center_x=self.game.center_x, center_y=-3*self.game.center_y)
 
-    def eventHandler(self, event):
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                pass
-            if event.key == pygame.K_ESCAPE:
-                self.changeScene("MainMenu")
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                pass
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                self.clicked = True
-            if event.button == 2:
-                self.scroll_holding = True
-        if event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1:
-                self.clicked = False
-                self.changed = False
-                self.first_selected = True
-            if event.button == 2:
-                self.scroll_holding = False
-        if event.type == pygame.QUIT:
-            self.level.create_csv('mymap')
+    def getInput(self):
+        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                pygame.quit()
+                break
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
+                    pass
+                if event.key == pygame.K_ESCAPE:
+                    self.changeScene("MainMenu")
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
+                    pass
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.left_holding = True
+                if event.button == 2:
+                    self.scroll_holding = True
+                if event.button == 3:
+                    self.right_holding = True
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.left_holding = False
+                    self.changed = False
+                    self.first_selected = True
+                if event.button == 2:
+                    self.scroll_holding = False
+                if event.button == 3:
+                    self.right_holding = False
+            if event.type == pygame.QUIT:
+                self.level.create_csv('mymap')
 
     def updateLogic(self):
         '''
-        Scrolling logic
+        Scrolling logic.
         '''
         self.last_mouse_pos = self.curr_mouse_pos
         self.curr_mouse_pos = np.array([self.mouse_x, self.mouse_y])
@@ -68,12 +81,21 @@ class LevelEditor(Scene):
         '''
         self.last_indexes = self.curr_indexes
         self.curr_indexes = self.level.getIndex(self.mouse_x, self.mouse_y)
+        print(self.curr_indexes)
 
-        if self.curr_indexes and self.clicked and self.first_selected:
+        # if self.curr_indexes:
+        #     if self.left_holding:
+        #         self.level.setValue(self.mouse_x, self.mouse_y, 1)
+        #         self.changed = True
+        #     if self.right_holding:
+        #         self.level.setValue(self.mouse_x, self.mouse_y, 0)
+        #         self.changed = True
+            
+        if self.curr_indexes and self.left_holding and self.first_selected:
             self.value = self.level.getValue(self.mouse_x, self.mouse_y)
             self.first_selected = False
 
-        if self.curr_indexes and self.clicked and (not self.changed):
+        if self.curr_indexes and self.left_holding and (not self.changed):
             if self.value == 0:
                 self.level.setValue(self.mouse_x, self.mouse_y, 1)
             elif self.value == 1:
@@ -84,26 +106,29 @@ class LevelEditor(Scene):
             self.changed = False
 
     def updateDisplay(self):
-        self.level.background.fill(pygame.Color("BLACK"))
-        self.level.drawPoints()
-        self.level.drawMap()
-        self.game.screen.blit(self.level.background, (0,0))
+        self.game.screen.fill(Scene.BLACK)
+
+        # Updates the screen if something has changed
+        if self.changed:
+            curr_value = self.level.getValue(self.mouse_x, self.mouse_y)
+            if curr_value != 0:
+                self.level.drawTile(*self.curr_indexes, Scene.RED)
+                # self.dirty_rects.append()
+            else:
+                self.level.drawTile(*self.curr_indexes, Scene.BLACK)
+                # self.dirty_rects.append()
+        self.level.updateMap(self.game.screen)
 
 
 class TileMap():
     '''
     Tile map functionality.
     '''
-    def __init__(self, tile_size, level_radius, level_height, center_x=0.0, center_y=0.0):
+    def __init__(self, tile_size, level_radius, num_layers, center_x=0.0, center_y=0.0):
         self.center_x, self.center_y = center_x, center_y
-        self.tile_color = pygame.Color("RED")
-        self.setMap(tile_size, level_radius, level_height)
-        self.computeCorners()
+        self.tile_color = Scene.RED
+        self.background_color = Scene.BLACK
 
-    def setMap(self, tile_size, level_radius, num_layers):
-        '''
-        Initially configures the map according to tile size, level radius and chosen number of layers.
-        '''
         if type(tile_size) != int:
             raise Exception("Tile size must be and integer.")
         if type(num_layers) != int:
@@ -130,18 +155,24 @@ class TileMap():
         self.curr_grid = np.zeros([self.num_layers, self.num_sides]) # grid initialization
 
         # Create background surface
-        self.background = pygame.Surface( (math.ceil(2*self.level_radius), math.ceil(2*self.level_radius)) ).convert()
+        self.background = pygame.Surface( (math.ceil(2*self.level_radius), math.ceil(2*self.level_radius)) )
+        self.drawPoints()
 
-    def computeCorners(self):
-        '''
-        Computes the corner points of the polygonal grid.
-        '''
-        self.tiles_x, self.tiles_y = [], []
+    def drawPoints(self):
+
+        pygame.draw.circle(self.background, self.tile_color, self.background.get_rect().center, 1 )
+
         self.num_points = self.num_sides*(self.num_layers+1)
         for angle_index in range(self.num_sides):
-            for level_index in range(0, self.num_layers+1):
-                self.tiles_x.append( self.center_x + ( self.height_offset + self.tile_size*level_index )*math.cos( self.angle*angle_index ) )
-                self.tiles_y.append( self.center_y + ( self.height_offset + self.tile_size*level_index )*math.sin( self.angle*angle_index ) )
+            for layer_ìndex in range(0, self.num_layers+1):
+                x = self.background.get_rect().centerx + ( self.height_offset + self.tile_size*layer_ìndex )*math.cos( self.angle*angle_index )
+                y = self.background.get_rect().centery + ( self.height_offset + self.tile_size*layer_ìndex )*math.sin( self.angle*angle_index )
+                pygame.draw.circle(self.background, self.tile_color, (x,y), 1 )
+
+    def updateMap(self, screen):
+        background_rect = self.background.get_rect()
+        background_rect.center = (self.center_x, self.center_y)
+        screen.blit(self.background, (background_rect))
 
     def moveCenter(self, x, y):
         '''
@@ -149,8 +180,6 @@ class TileMap():
         '''
         self.center_x += x
         self.center_y += y
-        self.tiles_x = (np.array(self.tiles_x)+x).tolist()
-        self.tiles_y = (np.array(self.tiles_y)+y).tolist()
 
     def toPolar(self, x, y):
         '''
@@ -189,36 +218,36 @@ class TileMap():
         '''
         radius, angle = self.toPolar(x, y)
         if radius > self.height_offset and radius < self.level_radius:
-            # return self.getIndex(radius, angle)
-            for k in range(self.num_sides):
-                if angle >= self.angle*k and angle < self.angle*(k+1):
-                    j_index = k
-                    break
-            for k in range(self.num_layers):
-                if radius >= self.height_offset + self.tile_size*k  and radius < self.height_offset + self.tile_size*(k+1):
-                    i_index = k
-                    break
+            radii = np.array([ self.tile_size*(i+1) for i in range(self.num_layers) ]) + self.height_offset
+            angles = np.array([ self.angle*(i+1) for i in range(self.num_sides) ])
+
+            i_index = np.nonzero(radii>=radius)[0][0]
+            j_index = np.nonzero(angles>=angle)[0][0]
+
             return i_index, j_index
         else:
             return None
 
     def drawTile(self, i, j, color):
         '''
-        Draws tile at index (i,j).
+        Fills tile at index (i,j) with color.
         '''
-        x1 = self.center_x + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*j )
-        y1 = self.center_y + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*j )
+        centerx, centery = self.background.get_rect().centerx, self.background.get_rect().centery
 
-        x2 = self.center_x + ( self.height_offset + self.tile_size*(i+1) )*math.cos( self.angle*j )
-        y2 = self.center_y + ( self.height_offset + self.tile_size*(i+1) )*math.sin( self.angle*j )
+        x1 = centerx + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*j )
+        y1 = centery + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*j )
 
-        x3 = self.center_x + ( self.height_offset + self.tile_size*(i+1) )*math.cos( self.angle*(j+1) )
-        y3 = self.center_y + ( self.height_offset + self.tile_size*(i+1) )*math.sin( self.angle*(j+1) )
+        x2 = centerx + ( self.height_offset + self.tile_size*(i+1) )*math.cos( self.angle*j )
+        y2 = centery + ( self.height_offset + self.tile_size*(i+1) )*math.sin( self.angle*j )
 
-        x4 = self.center_x + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*(j+1) )
-        y4 = self.center_y + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*(j+1) )
+        x3 = centerx + ( self.height_offset + self.tile_size*(i+1) )*math.cos( self.angle*(j+1) )
+        y3 = centery + ( self.height_offset + self.tile_size*(i+1) )*math.sin( self.angle*(j+1) )
 
-        pygame.draw.polygon( self.background, color, ((x1,y1),(x2,y2),(x3,y3),(x4,y4)) )
+        x4 = centerx + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*(j+1) )
+        y4 = centery + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*(j+1) )
+
+        return pygame.draw.polygon( self.background, color, ((x1,y1),(x2,y2),(x3,y3),(x4,y4)) )
+
 
     def drawMap(self):
         '''
@@ -228,15 +257,26 @@ class TileMap():
         num_zonzero = len(rows)
         for i in range(num_zonzero):
             self.drawTile(rows[i], columns[i], self.tile_color)
-        print(range(num_zonzero))
 
-    def drawPoints(self):
+    def drawLines(self):
         '''
-        Draws the corner points at the screen.
+        Draws the lines at the screen.
         '''
         pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), 1 )
-        for i in range(self.num_points):
-            pygame.draw.circle(self.background, self.tile_color, ( self.tiles_x[i], self.tiles_y[i] ), 1 )
+        # pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), self.height_offset, width=1 )
+        pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), self.level_radius, width=1 )
+
+        for j in range(self.num_sides):
+            x1 = self.center_x + self.height_offset*math.cos( self.angle*j )
+            y1 = self.center_y + self.height_offset*math.sin( self.angle*j )
+
+            x2 = self.center_x + self.level_radius*math.cos( self.angle*j )
+            y2 = self.center_y + self.level_radius*math.sin( self.angle*j )
+
+            pygame.draw.line(self.background, self.tile_color, (x1,y1), (x2,y2))
+
+        for i in range(self.num_layers):
+            pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), self.height_offset + self.tile_size*i, width=1 )
 
     def load_csv(self, filename):
         grid = []

@@ -21,6 +21,7 @@ class MainMenu(Scene):
             "Options":    Button(text="Options", x=self.center_x, y=self.center_y + 50),
             "Credits":    Button(text="Credits", x=self.center_x, y=self.center_y + 70)
         }
+        self.mouse_x, self.mouse_y = 0.0, 0.0
 
         self.cursor = Button(text='o', font_size=20)
 
@@ -36,50 +37,30 @@ class MainMenu(Scene):
     def reset_keys(self):
         self.UP_KEY, self.DOWN_KEY, self.START_KEY, self.BACK_KEY, self.CLICKING = False, False, False, False, False
 
-    def eventHandler(self, event):
-        '''
-        This method handles an event in the queue.
-        '''
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_DOWN:
-                self.DOWN_KEY = True
-            if event.key == pygame.K_UP:
-                self.UP_KEY = True
-            if event.key == pygame.K_RETURN:
-                self.START_KEY = True
-            if event.key == pygame.K_BACKSPACE:
-                self.BACK_KEY = True
-        if event.type == pygame.KEYUP:
-            pass
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                self.CLICKING = True
+    def getInput(self):
+        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                pygame.quit()
+                break
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_DOWN:
+                    self.DOWN_KEY = True
+                if event.key == pygame.K_UP:
+                    self.UP_KEY = True
+                if event.key == pygame.K_RETURN:
+                    self.START_KEY = True
+                if event.key == pygame.K_BACKSPACE:
+                    self.BACK_KEY = True
+            if event.type == pygame.KEYUP:
+                pass
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.CLICKING = True
 
     def updateLogic(self):
-        '''
-        This method encapsulates the Scene logic, and is responsible for updating the Scene state.
-        '''
-        # if self.DOWN_KEY:
-        #     if self.cursor_state == "Start Game":
-        #         self.cursor.y = self.buttons["Options"].y
-        #         self.cursor_state = "Options"
-        #     elif self.cursor_state == "Options":
-        #         self.cursor.y = self.buttons["Credits"].y
-        #         self.cursor_state = "Credits"
-        #     elif self.cursor_state == "Credits":
-        #         self.cursor.y = self.buttons["Start Game"].y
-        #         self.cursor_state = "Start Game"
-        # elif self.UP_KEY:
-        #     if self.cursor_state == "Start":
-        #         self.cursor.y = self.buttons["Credits"].y
-        #         self.cursor_state = "Credits"
-        #     elif self.cursor_state == "Options":
-        #         self.cursor.y = self.buttons["Start Game"].y
-        #         self.cursor_state = "Start Game"
-        #     elif self.cursor_state == "Credits":
-        #         self.cursor.y = self.buttons["Options"].y
-        #         self.cursor_state = "Options"
-
         self.cursor.x = self.mouse_x
         self.cursor.y = self.mouse_y
 
@@ -96,23 +77,9 @@ class MainMenu(Scene):
             else:
                 self.buttons[key].setFontSize(12)
 
-        # if self.START_KEY:
-        #     if self.cursor_state == "Start Game":
-        #         '''
-        #         Transition to "MainGame" scene.
-        #         '''
-        #         self.changeScene("MainGame")
-        #     elif self.cursor_state == "Options":
-        #         self.changeScene("MainGame")
-        #     elif self.cursor_state == "Credits":
-        #         self.changeScene("MainGame")
-
         self.reset_keys()
 
     def updateDisplay(self):
-        '''
-        This method updates the display.
-        '''
         self.game.screen.fill(pygame.Color("BLACK"))
 
         self.title.draw(self.game.screen)
