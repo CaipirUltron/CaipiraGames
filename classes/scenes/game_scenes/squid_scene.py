@@ -14,15 +14,22 @@ class SquidGame(Scene):
         self.deltaTime = 1/self.game.fps
         self.player = Player("images/sprites/player", self.deltaTime)
 
-    def eventHandler(self, event):
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                self.player.startMovement(event.key)
-            if event.key == pygame.K_ESCAPE:
-                self.changeScene("MainMenu")
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                self.player.endMovement(event.key)
+    def getInput(self):
+        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                pygame.quit()
+                break
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
+                    self.player.startMovement(event.key)
+                if event.key == pygame.K_ESCAPE:
+                    self.changeScene("MainMenu")
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT or event.key == pygame.K_UP or event.key == pygame.K_DOWN:
+                    self.player.endMovement(event.key)
 
     def updateLogic(self):
         self.player.followMouse(float(self.mouse_x), float(self.mouse_y))

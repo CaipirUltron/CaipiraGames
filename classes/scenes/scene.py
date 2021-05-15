@@ -14,8 +14,8 @@ class Scene(ABC):
         self.name = name
         self.running = False
 
-        # Updates the hole screen.
-        self.dirty_rects = self.game.screen.get_rect()
+        self.update_all = True
+        self.dirty_rects = []
 
     def changeScene(self, scene_name):
         self.game.setActiveScene(scene_name)
@@ -48,8 +48,13 @@ class Scene(ABC):
         '''
         self.running = True
         while self.running:
+            if not self.update_all:
+                self.dirty_rects = []
             self.getInput()
             self.updateLogic()
             self.updateDisplay()
-            pygame.display.update(self.dirty_rects)
+            if self.update_all:
+                pygame.display.update()
+            else:
+                pygame.display.update(self.dirty_rects)
             self.game.clock.tick(self.game.fps)
