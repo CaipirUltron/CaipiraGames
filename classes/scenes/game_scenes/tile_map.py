@@ -5,7 +5,7 @@ class TileMap():
     '''
     Tile map functionality.
     '''
-    def __init__(self, tile_size, level_radius, num_layers, base_color=pygame.Color("WHITE"), filename=None):
+    def __init__(self, tile_size, level_radius, num_layers, filename, base_color=pygame.Color("WHITE")):
 
         self.base_color = base_color
 
@@ -41,10 +41,8 @@ class TileMap():
         self.level_distortion = 2*self.num_layers*math.tan(math.pi/self.num_sides)
 
         # Initialize logical grid
-        if filename != None:
-            self.load_level(filename)
-        else:
-            self.tilegrid = np.zeros([self.num_layers, self.num_sides],dtype=int) # grid initialization
+        self.tilegrid = np.zeros([self.num_layers, self.num_sides],dtype=int)
+        self.load_level(filename)
 
         # Initialize background graphics.
         self.background = pygame.Surface( (math.ceil(2*self.level_radius), math.ceil(2*self.level_radius)) )
@@ -153,17 +151,23 @@ class TileMap():
         return dirty_rects
 
     def load_level(self, filename):
-        grid = []
-        with open(os.path.join(filename+str('.csv'))) as data:
-            data = csv.reader(data, delimiter=',')
-            for row in data:
-                grid.append(list(row))
-        tilegrid = np.array(grid)
-        if tilegrid.shape == ( self.num_layers, self.num_sides ):
-            self.tilegrid = tilegrid
-            print("Tile map loaded.")
-        else:
-            raise Exception("Shape of loaded level is incompatible.")
+        try:
+            grid = []
+            with open(os.path.join(filename+str('.csv'))) as data:
+                data = csv.reader(data, delimiter=',')
+                for row in data:
+                    grid.append(list(row))
+            tilegrid = np.array(grid)
+            if tilegrid.shape == ( self.num_layers, self.num_sides ):
+                self.tilegrid = tilegrid
+                print("Tile map loaded successfully.")
+            else:
+                raise Exception("Shape of loaded level is incompatible.")
+        except IOError:
+            print("Couldn't locate the file. Creating "+filename+str('.csv'))
+            self.save_level(filename)
+
+        
 
     def save_level(self, filename):
         with open(filename+str('.csv'), mode='w') as file:
