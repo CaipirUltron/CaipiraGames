@@ -15,7 +15,8 @@ class TileMap():
             '3': pygame.Color("GREEN"),
             '4': pygame.Color("BLUE"),
             '5': pygame.Color("MAGENTA"),
-            '6': pygame.Color("ORANGE")
+            '6': pygame.Color("ORANGE"),
+            '7': pygame.Color("BROWN")
         }
         self.num_materials = len(self.materials)
 
@@ -142,11 +143,11 @@ class TileMap():
 
         p1, p2, p3, p4 = (x1,y1), (x2,y2), (x3,y3), (x4,y4)
 
+        dirty_rects.append( pygame.draw.polygon(self.background, color, (p1,p2,p3,p4)) )
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x1,y1), 1 ) )
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x2,y2), 1 ) )
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x3,y3), 1 ) )
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x4,y4), 1 ) )
-        dirty_rects.append( pygame.draw.polygon(self.background, color, (p1,p2,p3,p4)) )
 
         return dirty_rects
 

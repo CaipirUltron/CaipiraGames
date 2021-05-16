@@ -29,7 +29,7 @@ class LevelEditor(Scene):
         self.mouse_x, self.mouse_y = 0.0, 0.0
         self.mouse_displacement = (0,0)
 
-        self.level = TileMap(16, 500, 15, filename=self.filename)
+        self.level = TileMap(16, 400, 15, filename=self.filename)
         self.level_center = np.array([self.game.center_x, self.game.center_y])
         self.level_rect = self.level.background.get_rect(center=self.level_center.tolist())
 
