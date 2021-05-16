@@ -5,9 +5,19 @@ class TileMap():
     '''
     Tile map functionality.
     '''
-    def __init__(self, tile_size, level_radius, num_layers, tile_color, filename=None):
+    def __init__(self, tile_size, level_radius, num_layers, base_color=pygame.Color("WHITE"), filename=None):
 
-        self.tile_color = tile_color
+        self.base_color = base_color
+
+        self.materials = {
+            '1': pygame.Color("WHITE"),
+            '2': pygame.Color("RED"),
+            '3': pygame.Color("GREEN"),
+            '4': pygame.Color("BLUE"),
+            '5': pygame.Color("MAGENTA"),
+            '6': pygame.Color("ORANGE")
+        }
+        self.num_materials = len(self.materials)
 
         if type(tile_size) != int:
             raise Exception("Tile size must be an integer.")
@@ -48,19 +58,19 @@ class TileMap():
         dirty_rects = []
 
         # Central point
-        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, self.background.get_rect().center, 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.base_color, self.background.get_rect().center, 1 ) )
 
         # Corner points
         for angle_index in range(self.num_sides):
             for layer_index in range(0, self.num_layers+1):
                 x = self.background_rect.centerx + ( self.height_offset + self.tile_size*layer_index )*math.cos( self.angle*angle_index )
                 y = self.background_rect.centery + ( self.height_offset + self.tile_size*layer_index )*math.sin( self.angle*angle_index )
-                dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x,y), 1 ) )
+                dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x,y), 1 ) )
 
                 if layer_index < self.num_layers:
-                    value = int(self.getAtIndexes([layer_index], [angle_index])[0])
-                    if value != 0.0:
-                        dirty_rects.append( self.drawTile(layer_index, angle_index, self.tile_color) )
+                    material = int(self.getAtIndexes([layer_index], [angle_index])[0])
+                    if material != 0:
+                        dirty_rects.append( self.drawTile(layer_index, angle_index, self.materials[str(material)]) )
 
         return dirty_rects
 
@@ -91,7 +101,6 @@ class TileMap():
         num_indexes = len(i_index)
         values = []
         for k in range(num_indexes):
-            print(i_index[k], j_index[k])
             values.append( self.tilegrid[ i_index[k], j_index[k]] )
         return values
 
@@ -135,10 +144,10 @@ class TileMap():
 
         p1, p2, p3, p4 = (x1,y1), (x2,y2), (x3,y3), (x4,y4)
 
-        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x1,y1), 1 ) )
-        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x2,y2), 1 ) )
-        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x3,y3), 1 ) )
-        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x4,y4), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x1,y1), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x2,y2), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x3,y3), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x4,y4), 1 ) )
         dirty_rects.append( pygame.draw.polygon(self.background, color, (p1,p2,p3,p4)) )
 
         return dirty_rects

@@ -12,17 +12,24 @@ class LevelEditor(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
 
+        self.filename = 'map1'
+
         self.background_color = pygame.Color("BLACK")
-        self.scroll_speed = 1.0
+        self.button_separation = 40
+        self.button_radius = 15
+        self.ponter_size = 8
+
+        self.curr_material = 1
 
         self.left_holding = False
         self.right_holding = False
         self.scroll_holding = False
+        self.scroll_speed = 1.0
 
         self.mouse_x, self.mouse_y = 0.0, 0.0
         self.mouse_displacement = (0,0)
 
-        self.level = TileMap(16, 500, 15, pygame.Color("RED"), filename='mymap')
+        self.level = TileMap(16, 500, 15, filename=self.filename)
         self.level_center = np.array([self.game.center_x, self.game.center_y])
         self.level_rect = self.level.background.get_rect(center=self.level_center.tolist())
 
@@ -40,7 +47,7 @@ class LevelEditor(Scene):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-                self.level.save_level('mymap')
+                self.level.save_level(self.filename)
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
@@ -66,20 +73,33 @@ class LevelEditor(Scene):
                 if event.button == 3:
                     self.right_holding = False
             if event.type == pygame.MOUSEMOTION and self.scroll_holding:
-                self.mouse_displacement += np.array(event.rel)                
+                self.mouse_displacement += np.array(event.rel)
+            if event.type == MOUSEWHEEL:
+                if event.y < 0:
+                    self.curr_material += 1
+                if event.y > 0:
+                    self.curr_material -= 1
 
     def updateLogic(self):
         
+        # Loop on the number of materials
+        if self.curr_material > self.level.num_materials:
+            self.curr_material = 1
+        elif self.curr_material < 1:
+            self.curr_material = self.level.num_materials
+
+        print("Selected material = " + str(self.curr_material))
+
         # Scrolling
         self.panLevel( self.mouse_displacement )
-        
+
         # Updating the map.
         value, indexes = self.level.getValue( *self.toBackground(self.mouse_x, self.mouse_y) )
 
         if indexes:
             if self.left_holding:
-                self.level.setValue( *self.toBackground(self.mouse_x, self.mouse_y), 1 )
-                tile_rect = self.level.drawTile( *indexes, self.level.tile_color )
+                self.level.setValue( *self.toBackground(self.mouse_x, self.mouse_y), self.curr_material )
+                tile_rect = self.level.drawTile( *indexes, self.level.materials[str(self.curr_material)] )
             if self.right_holding:
                 self.level.setValue( *self.toBackground(self.mouse_x, self.mouse_y), 0 )
                 tile_rect = self.level.drawTile( *indexes, self.background_color )
@@ -88,11 +108,16 @@ class LevelEditor(Scene):
 
         # Fills the game screen with the background color, but only at the intersection with the background
         intersect = self.level_rect.clip(self.game.screen_rect)
-        self.dirty_rects.append( self.game.screen.fill(self.background_color, rect=intersect) )
+        self.dirty_rects.append( self.game.screen.fill(self.background_color) )
 
         # Blits the background level at the screen
         self.level_rect.center = self.level_center.tolist()
         self.dirty_rects.append( self.game.screen.blit( self.level.background, self.level_rect ) )
+
+        self.dirty_rects.append( pygame.draw.circle(self.game.screen, self.level.materials[str(self.curr_material)], (self.mouse_x,self.mouse_y), self.ponter_size ) )
+
+        for material in self.level.materials:
+            pygame.draw.circle(self.game.screen, self.level.materials[material], ( 2*self.button_radius , int(material)*self.button_separation ), self.button_radius )
 
     def toScreen(self, rect):
         '''
