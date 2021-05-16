@@ -1,18 +1,16 @@
 import numpy as np
-import sys, os, csv, math, pygame
-from classes.scenes import Scene
+import os, csv, math, pygame
 
 class TileMap():
     '''
     Tile map functionality.
     '''
-    def __init__(self, tile_size, level_radius, num_layers, center_x=0.0, center_y=0.0):
-        self.center_x, self.center_y = center_x, center_y
-        self.tile_color = Scene.RED
-        self.background_color = Scene.BLACK
+    def __init__(self, tile_size, level_radius, num_layers, tile_color, filename=None):
+
+        self.tile_color = tile_color
 
         if type(tile_size) != int:
-            raise Exception("Tile size must be and integer.")
+            raise Exception("Tile size must be an integer.")
         if type(num_layers) != int:
             raise Exception("Number of layers must an integer.")
         if num_layers*tile_size >= level_radius:
@@ -33,48 +31,45 @@ class TileMap():
         self.level_distortion = 2*self.num_layers*math.tan(math.pi/self.num_sides)
 
         # Initialize logical grid
-        self.tilegrid = np.zeros([self.num_layers, self.num_sides]) # grid initialization
+        if filename != None:
+            self.load_level(filename)
+        else:
+            self.tilegrid = np.zeros([self.num_layers, self.num_sides],dtype=int) # grid initialization
 
-    def drawBackground(self, screen):
-        '''
-        Creates the tile map background, with dotted points representing the corners.
-        '''
+        # Initialize background graphics.
         self.background = pygame.Surface( (math.ceil(2*self.level_radius), math.ceil(2*self.level_radius)) )
-        self.background_rect = self.background.get_rect(center=(self.center_x, self.center_y))
+        self.background_rect = self.background.get_rect()
+        self.drawBackground()
 
-        pygame.draw.circle(self.background, self.tile_color, self.background.get_rect().center, 1 )
-        self.num_points = self.num_sides*(self.num_layers+1)
+    def drawBackground(self):
+        '''
+        Draws the tile map dots to the specified surface. Returns a list with modified rects.
+        '''
+        dirty_rects = []
+
+        # Central point
+        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, self.background.get_rect().center, 1 ) )
+
+        # Corner points
         for angle_index in range(self.num_sides):
             for layer_index in range(0, self.num_layers+1):
                 x = self.background_rect.centerx + ( self.height_offset + self.tile_size*layer_index )*math.cos( self.angle*angle_index )
                 y = self.background_rect.centery + ( self.height_offset + self.tile_size*layer_index )*math.sin( self.angle*angle_index )
-                pygame.draw.circle(self.background, self.tile_color, (x,y), 1 )
-        
-        self.updateBackground(screen)
+                dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x,y), 1 ) )
 
-    def diffMap(self):
-        indexes = np.nonzero(self.last_grid-self.tilegrid)
-        changed_values = self.getAtIndexes( indexes[0], indexes[1] )
-        return changed_values, indexes[0], indexes[1]
+                if layer_index < self.num_layers:
+                    value = int(self.getAtIndexes([layer_index], [angle_index])[0])
+                    if value != 0.0:
+                        dirty_rects.append( self.drawTile(layer_index, angle_index, self.tile_color) )
 
-    def updateBackground(self, screen):
-        # background_rect = self.background.get_rect()
-        self.background_rect.center = (self.center_x, self.center_y)
-        screen.blit(self.background, self.background_rect)
-
-    def moveMap(self, x, y):
-        '''
-        Moves the entire grid by moving the center coordinates.
-        '''
-        self.center_x += x
-        self.center_y += y
+        return dirty_rects
 
     def toPolar(self, x, y):
         '''
         Converts cartesian coords (x,y) to polar coords (radius, angle).
         '''
-        radius = math.sqrt( (x - self.center_x)**2 + (y - self.center_y)**2 )
-        angle = math.atan2( y - self.center_y, x - self.center_x )
+        radius = math.sqrt( (x - self.background_rect.centerx)**2 + (y - self.background_rect.centery)**2 )
+        angle = math.atan2( y - self.background_rect.centery, x - self.background_rect.centerx )
         if angle < 0:
             angle += 2*math.pi
         return radius, angle
@@ -120,9 +115,11 @@ class TileMap():
 
     def drawTile(self, i, j, color):
         '''
-        Fills tile at index (i,j) with color.
+        Fills tile at index (i,j) with color. Returns modified rects.
         '''
-        centerx, centery = self.background.get_rect().centerx, self.background.get_rect().centery
+        dirty_rects = []
+
+        centerx, centery = self.background_rect.centerx, self.background_rect.centery
 
         x1 = centerx + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*j )
         y1 = centery + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*j )
@@ -136,50 +133,32 @@ class TileMap():
         x4 = centerx + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*(j+1) )
         y4 = centery + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*(j+1) )
 
-        return pygame.draw.polygon( self.background, color, ((x1,y1),(x2,y2),(x3,y3),(x4,y4)) ).get_rect()
+        p1, p2, p3, p4 = (x1,y1), (x2,y2), (x3,y3), (x4,y4)
 
-    # def drawMap(self):
-    #     '''
-    #     Draws the map. This method can be greatly optimized by drawing the minimum amount of polygons required to represent the map, instead of simply drawing one polygon per tile.
-    #     '''
-    #     rows, columns = np.nonzero(self.tilegrid)
-    #     num_zonzero = len(rows)
-    #     dirty_rects = []
-    #     for i in range(num_zonzero):
-    #         dirty_rects.append(self.drawTile(rows[i], columns[i], self.tile_color))
+        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x1,y1), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x2,y2), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x3,y3), 1 ) )
+        dirty_rects.append( pygame.draw.circle(self.background, self.tile_color, (x4,y4), 1 ) )
+        dirty_rects.append( pygame.draw.polygon(self.background, color, (p1,p2,p3,p4)) )
 
-    #     return dirty_rects
+        return dirty_rects
 
-    # def drawLines(self):
-    #     '''
-    #     Draws the lines at the screen.
-    #     '''
-    #     pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), 1 )
-    #     # pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), self.height_offset, width=1 )
-    #     pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), self.level_radius, width=1 )
-
-    #     for j in range(self.num_sides):
-    #         x1 = self.center_x + self.height_offset*math.cos( self.angle*j )
-    #         y1 = self.center_y + self.height_offset*math.sin( self.angle*j )
-
-    #         x2 = self.center_x + self.level_radius*math.cos( self.angle*j )
-    #         y2 = self.center_y + self.level_radius*math.sin( self.angle*j )
-
-    #         pygame.draw.line(self.background, self.tile_color, (x1,y1), (x2,y2))
-
-    #     for i in range(self.num_layers):
-    #         pygame.draw.circle(self.background, self.tile_color, ( self.center_x, self.center_y ), self.height_offset + self.tile_size*i, width=1 )
-
-    def load_csv(self, filename):
+    def load_level(self, filename):
         grid = []
-        with open(os.path.join(filename)) as data:
+        with open(os.path.join(filename+str('.csv'))) as data:
             data = csv.reader(data, delimiter=',')
             for row in data:
                 grid.append(list(row))
-        self.tilegrid = np.array(grid)
+        tilegrid = np.array(grid)
+        if tilegrid.shape == ( self.num_layers, self.num_sides ):
+            self.tilegrid = tilegrid
+            print("Tile map loaded.")
+        else:
+            raise Exception("Shape of loaded level is incompatible.")
 
-    def create_csv(self, filename):
+    def save_level(self, filename):
         with open(filename+str('.csv'), mode='w') as file:
             file_writer = csv.writer(file, delimiter=',')
             for row in range(self.num_layers):
-                file_writer.writerow(self.tilegrid[row])
+                file_writer.writerow(self.tilegrid[row].tolist())
+        print("Tile map saved.")

@@ -6,9 +6,6 @@ class Scene(ABC):
     Basic class for a game scene. Always contains at least an eventHandler and a runningLoop method.
     Used as a parent class for game menus, screens and for the game itself.
     '''
-    BLACK = pygame.Color("BLACK")
-    RED = pygame.Color("RED")
-    
     def __init__(self, game, name):
         self.game = game
         self.name = name
@@ -38,7 +35,8 @@ class Scene(ABC):
     @abstractmethod
     def updateDisplay(self):
         '''
-        This method updates the display.
+        This method updates the display screen with created surfaces.
+        It is recommended to append the Rect returned by every blit to the list self.dirty_rects, for optimal performance on display update.
         '''
         pass
 
