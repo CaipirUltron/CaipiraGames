@@ -12,7 +12,7 @@ class LevelEditor(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
 
-        self.filename = 'map2'
+        self.filename = 'map1'
 
         self.background_color = pygame.Color("BLACK")
         self.button_separation = 40
