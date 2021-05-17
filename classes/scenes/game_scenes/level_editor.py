@@ -30,6 +30,8 @@ class LevelEditor(Scene):
         self.mouse_displacement = (0,0)
 
         self.level = TileMap(16, 400, 15, filename=self.filename)
+        # self.level = TileMap(16, 800, 25, filename=self.filename)
+
         self.level_center = np.array([self.game.center_x, self.game.center_y])
         self.level_rect = self.level.background.get_rect(center=self.level_center.tolist())
 
@@ -79,7 +81,7 @@ class LevelEditor(Scene):
                     self.curr_material += 1
                 if event.y > 0:
                     self.curr_material -= 1
-
+  
     def updateLogic(self):
         
         # Loop on the number of materials
@@ -87,8 +89,6 @@ class LevelEditor(Scene):
             self.curr_material = 1
         elif self.curr_material < 1:
             self.curr_material = self.level.num_materials
-
-        print("Selected material = " + str(self.curr_material))
 
         # Scrolling
         self.panLevel( self.mouse_displacement )
@@ -111,6 +111,7 @@ class LevelEditor(Scene):
         self.dirty_rects.append( self.game.screen.fill(self.background_color) )
 
         # Blits the background level at the screen
+
         self.level_rect.center = self.level_center.tolist()
         self.dirty_rects.append( self.game.screen.blit( self.level.background, self.level_rect ) )
 

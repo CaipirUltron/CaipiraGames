@@ -70,6 +70,8 @@ class TileMap():
                     material = int(self.getAtIndexes([layer_index], [angle_index])[0])
                     if material != 0:
                         dirty_rects.append( self.drawTile(layer_index, angle_index, self.materials[str(material)]) )
+        
+        dirty_rects.append( pygame.draw.circle(self.background, self.base_color, self.background_rect.center, self.level_radius, width=2 ) )
 
         return dirty_rects
 
@@ -148,6 +150,9 @@ class TileMap():
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x2,y2), 1 ) )
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x3,y3), 1 ) )
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x4,y4), 1 ) )
+
+        if self.height_offset + self.tile_size*(i+1) == self.level_radius:
+            dirty_rects.append( pygame.draw.circle(self.background, self.base_color, self.background_rect.center, self.level_radius, width=2 ) )
 
         return dirty_rects
 
