@@ -1,7 +1,41 @@
 import numpy as np
 import os, csv, math, pygame
+from pygame.locals import *
 
-class TileMap():
+class Tile(pygame.sprite.Sprite):
+    '''
+    Basic tile functionality.
+    '''
+    def __init__(self, radius, height, angle, color=pygame.Color("WHITE")):
+        super().__init__()
+        self.height = height
+        self.angle = angle
+        self.color = color
+        self.width = 2*radius*math.sin(angle/2)
+        # self.width = self.height
+        self.base_color = pygame.Color("WHITE")
+        self.image = pygame.Surface( (self.width, self.height), pygame.SRCALPHA).convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.left = 500
+        self.rect.bottom = 500
+        self.draw_tile()
+        self.speed = 8
+
+    def draw_tile(self):
+        p1 = (self.height*math.tan(self.angle/2), 0)
+        p2 = (self.width - self.height*math.tan(self.angle/2), 0)
+        p3 = (self.width, self.height)
+        p4 = (0, self.height)
+        pygame.draw.circle( self.image, self.base_color, p1, 1 )
+        pygame.draw.circle( self.image, self.base_color, p2, 1 )
+        pygame.draw.circle( self.image, self.base_color, p3, 1 )
+        pygame.draw.circle( self.image, self.base_color, p4, 1 )
+        pygame.draw.polygon( self.image, self.color, (p1,p2,p3,p4) )
+
+    def update(self):
+        pass
+
+class TileMap(pygame.sprite.Group):
     '''
     Tile map functionality.
     '''
@@ -10,13 +44,13 @@ class TileMap():
         self.base_color = base_color
 
         self.materials = {
-            '1': pygame.Color("WHITE"),
-            '2': pygame.Color("RED"),
-            '3': pygame.Color("GREEN"),
-            '4': pygame.Color("BLUE"),
-            '5': pygame.Color("MAGENTA"),
-            '6': pygame.Color("ORANGE"),
-            '7': pygame.Color("BROWN")
+            1: pygame.Color("WHITE"),
+            2: pygame.Color("RED"),
+            3: pygame.Color("GREEN"),
+            4: pygame.Color("BLUE"),
+            5: pygame.Color("MAGENTA"),
+            6: pygame.Color("ORANGE"),
+            7: pygame.Color("BROWN")
         }
         self.num_materials = len(self.materials)
 
@@ -50,6 +84,28 @@ class TileMap():
         self.background_rect = self.background.get_rect()
         self.drawBackground()
 
+    # def drawBackground2(self):
+    #     '''
+    #     Draws the tile map dots to the specified surface. Returns a list with modified rects.
+    #     '''
+    #     dirty_rects = []
+    #     dirty_rects.append( pygame.draw.circle(self.background, self.base_color, self.background.get_rect().center, 1 ) )
+        
+    #     for i in range(self.num_layers+1):
+    #         for j in range(self.num_sides):
+    #             radius = self.height_offset + self.tile_size*i
+                
+    #             x = self.background_rect.centerx + ( self.height_offset + self.tile_size*i )*math.cos( self.angle*j )
+    #             y = self.background_rect.centery + ( self.height_offset + self.tile_size*i )*math.sin( self.angle*j )
+    #             dirty_rects.append( pygame.draw.circle(self.background, self.base_color, (x,y), 1 ) )
+
+    def rot_center(self, image, rect, angle):
+        """rotate an image while keeping its center"""
+        rot_image = pygame.transform.rotate(image, angle)
+        rot_rect = rot_image.get_rect(center=rect.center)
+        return rot_image,rot_rect
+
+
     def drawBackground(self):
         '''
         Draws the tile map dots to the specified surface. Returns a list with modified rects.
@@ -69,7 +125,7 @@ class TileMap():
                 if layer_index < self.num_layers:
                     material = int(self.getAtIndexes([layer_index], [angle_index])[0])
                     if material != 0:
-                        dirty_rects.append( self.drawTile(layer_index, angle_index, self.materials[str(material)]) )
+                        dirty_rects.append( self.drawTile(layer_index, angle_index, self.materials[material]) )
         
         dirty_rects.append( pygame.draw.circle(self.background, self.base_color, self.background_rect.center, self.level_radius, width=2 ) )
 
@@ -89,7 +145,6 @@ class TileMap():
         '''
         Sets the grid values at (x,y). If the position is outside of the grid, returns None.
         '''
-        self.last_grid = self.tilegrid
         val, indexes = self.getValue(x, y)
         if indexes:
             self.tilegrid[indexes] = value
@@ -173,10 +228,8 @@ class TileMap():
             print("Couldn't locate the file. Creating "+filename+str('.csv'))
             self.save_level(filename)
 
-        
-
     def save_level(self, filename):
-        with open(filename+str('.csv'), mode='w') as file:
+        with open(filename+str('.csv'), mode='w', newline='') as file:
             file_writer = csv.writer(file, delimiter=',')
             for row in range(self.num_layers):
                 file_writer.writerow(self.tilegrid[row].tolist())

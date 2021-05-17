@@ -28,6 +28,7 @@ class LevelEditor(Scene):
 
         self.mouse_x, self.mouse_y = 0.0, 0.0
         self.mouse_displacement = (0,0)
+        self.angle = 0.0
 
         self.level = TileMap(16, 400, 15, filename=self.filename)
         # self.level = TileMap(16, 800, 25, filename=self.filename)
@@ -99,7 +100,7 @@ class LevelEditor(Scene):
         if indexes:
             if self.left_holding:
                 self.level.setValue( *self.toBackground(self.mouse_x, self.mouse_y), self.curr_material )
-                tile_rect = self.level.drawTile( *indexes, self.level.materials[str(self.curr_material)] )
+                tile_rect = self.level.drawTile( *indexes, self.level.materials[self.curr_material] )
             if self.right_holding:
                 self.level.setValue( *self.toBackground(self.mouse_x, self.mouse_y), 0 )
                 tile_rect = self.level.drawTile( *indexes, self.background_color )
@@ -115,10 +116,15 @@ class LevelEditor(Scene):
         self.level_rect.center = self.level_center.tolist()
         self.dirty_rects.append( self.game.screen.blit( self.level.background, self.level_rect ) )
 
-        self.dirty_rects.append( pygame.draw.circle(self.game.screen, self.level.materials[str(self.curr_material)], (self.mouse_x,self.mouse_y), self.ponter_size ) )
+        self.dirty_rects.append( pygame.draw.circle(self.game.screen, self.level.materials[self.curr_material], (self.mouse_x,self.mouse_y), self.ponter_size ) )
 
         for material in self.level.materials:
             pygame.draw.circle(self.game.screen, self.level.materials[material], ( 2*self.button_radius , int(material)*self.button_separation ), self.button_radius )
+
+    def rot_center(self, angle):
+        """rotate an image while keeping its center"""
+        self.level.background = pygame.transform.rotate(self.level.background, angle)
+        self.level_rect = self.level.background.get_rect(center=self.level_rect.center)
 
     def toScreen(self, rect):
         '''
