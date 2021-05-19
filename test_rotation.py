@@ -15,23 +15,22 @@ class Object(pygame.sprite.Sprite):
     # Init
     def __init__(self):
         super(Object, self).__init__()
-        self.og_surf = pygame.transform.smoothscale(pygame.image.load("new_bullet.jpg").convert(), (300, 300))
-        # self.og_surf = pygame.Surface((32,32))
-        # self.og_surf.fill(Color("RED"))
-        self.surf = self.og_surf
-        self.rect = self.surf.get_rect(center=(400, 400))
+        # self.og_surf = pygame.transform.smoothscale(pygame.image.load("images/sprites/player/idle/1.png").convert_alpha(), (300, 300))
+        self.og_surf = pygame.Surface((32,64)).convert_alpha()
+        self.og_surf.fill(Color("RED"))
+        self.image = self.og_surf
+        self.rect = self.image.get_rect(center=(600, 600))
         self.angle = 0
         self.change_angle = 0
 
     # THE MAIN ROTATE FUNCTION
     def rot(self):
-        self.surf = pygame.transform.rotate(self.og_surf, self.angle)
+        self.image = pygame.transform.rotate(self.og_surf, self.angle)
         self.angle += self.change_angle*sample_time
-        # self.angle = self.angle % 360
-        self.rect = self.surf.get_rect(center=self.rect.center)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
     # Move for keypresses
-    def move(self, li):
+    def update(self, li):
         self.change_angle = 0
         if li[K_LEFT]:
             self.change_angle = 60
@@ -45,8 +44,8 @@ run = True
 screen = pygame.display.set_mode((800, 800))
 obj = Object()
 obj.angle = random.randint(50, 100)
-obj.rect.x = 300
-obj.rect.y = 299
+obj.rect.x = 500
+obj.rect.y = 500
 all_sprites = pygame.sprite.Group()
 all_sprites.add(obj)
 
@@ -68,9 +67,11 @@ while run:
                 run = False
 
     # Rendering and rotating
-    for x in all_sprites:
-        x.move(presses)
-        screen.blit(x.surf, x.rect)
+    all_sprites.update(presses)
+    all_sprites.draw(screen)
+    # for x in all_sprites:
+    #     x.move(presses)
+    #     screen.blit(x.surf, x.rect)
 
     # Flipping and setting framerate
     pygame.display.update()

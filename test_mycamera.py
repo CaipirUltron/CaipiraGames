@@ -1,6 +1,8 @@
 import pygame, sys, math
 from pygame.locals import *
-from classes.scenes.game_scenes.tile_map import Tile
+from classes.scenes.game_scenes.sprite_tilemap import Background, Tile, TileMap
+from classes import Camera, CameraAwareGroup
+import numpy as np
 
 PHONE_RESOLUTION = (1440,2960)
 HD1080_RESOLUTION = (1920,1080)
@@ -14,15 +16,27 @@ screen = pygame.display.set_mode(HD720_RESOLUTION)
 pygame.display.set_caption("Test Sprite Tiles")
 timer = pygame.time.Clock()
 
-tile = Tile(500,40,math.pi/100, Color("BLUE"))
+x, y, angle = 0, 0, 0
+radius = 300
+height = 32
+num_floors = 10
+num_sides = 10
+phi = 2*math.pi/num_sides
 
-x, y = 500, 500
-tileMap = pygame.sprite.Group()
-tileMap.add(tile)
+tileBG = Background( radius, height, num_floors, num_sides )
+player = Tile(radius,height,phi, (x, y), angle, Color("BLUE"))
+# tile2 = Tile(radius+height,height,phi, x, y, angle, Color("BLUE"))
+
+tileMap = CameraAwareGroup( player )
+tileMap.add( player )
+tileMap.add( tileBG )
+
+# tileMap = TileMap( radius, height, 'map1' )
 
 left, right, up, down = False, False, False, False
 
 while True:
+
     for event in pygame.event.get():
         if event.type == QUIT: 
             pygame.quit()
@@ -45,6 +59,20 @@ while True:
                 up = False
             if event.key == pygame.K_DOWN:
                 down = False
+
+    if left:
+        player.rect.centerx -= 5
+    if right:
+        player.rect.centerx += 5
+    if up:
+        player.rect.centery -= 5
+    if down:
+        player.rect.centery += 5
+
+    player.angle += 1.0
+
+    print("Player pos = " + str(player.rect.center))
+    print("Player angle = " + str(player.angle))
 
     tileMap.update()
 

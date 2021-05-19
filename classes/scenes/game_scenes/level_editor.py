@@ -3,7 +3,7 @@ from pygame.locals import *
 import numpy as np
 
 from classes.scenes import Scene
-from classes.scenes.game_scenes.tile_map import TileMap
+from classes.scenes.game_scenes.tilemap import TileMap
 
 class LevelEditor(Scene):
     """ 
