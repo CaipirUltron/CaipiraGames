@@ -3,7 +3,8 @@ from pygame.locals import *
 import numpy as np
 
 from classes.scenes import Scene
-from classes.scenes.game_scenes.tilemap import TileMap
+from classes.basics.tilemap import TileMap
+from classes.cameras import Camera, CameraAwareGroup
 
 class LevelEditor(Scene):
     """ 
