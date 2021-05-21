@@ -1,67 +1,61 @@
 import pygame, math
-import numpy as np
 from pygame.locals import *
+from pygame.math import *
+
 
 class Camera():
     '''
     Base class for a simple camera. 
-    Holds the camera position and orientation wrt to the world frame, and performs the required coordinates transformations.
+    Members:
+    (i)   Target sprite to be followed
+    (ii)  Screen size
+    (iii) Camera position at the screen center (world frame)
+    (iv)  Camera orientation                   (world frame)
     '''
-    def __init__(self, screen_size):
-        self.position = np.array([0,0])
-        self.angle = 0.0
+    def __init__(self, target, screen_size, pos=pygame.math.Vector2(0,0), angle=0):
+        self.target = target
         self.screen_size = screen_size
+        self.position = pos
+        self.orientation = angle
 
-    def from_camera(self, pos):
+    def screen2world(self, screen_pos):
         '''
-        Converts position in the screen coordinates to world coordinates. Useful for clickable objects.
+        Converts position in the screen coordinates to world coordinates.
+        Useful for clickable objects.
         '''
-        world_pos = self.rot(math.radians(self.angle)).dot( np.array(pos) - np.array(self.screen_size)/2 ) + self.position
-        return world_pos.tolist()
+        world_pos = ( Vector2(screen_pos) - Vector2(self.screen_size)/2 ).rotate( -self.orientation ) + self.position
+        return world_pos
 
     def transform(self, sprite):
         '''
-        Converts a sprite with world coordinates to image and rect in screen coordinates.
-        Used to convert the sprites coordinates to the screen, effectivelly implementing the camera scroll.
+        Converts sprite with world coordinates to image and rect in screen coordinates.
+        Used to implement the camera scroll.
         '''
-        transformed_angle = sprite.angle - self.angle
-        transformed_img = pygame.transform.rotate(sprite.image, transformed_angle)
-        camera_pos = self.rot(math.radians(self.angle)).T.dot( np.array(sprite.rect.center) - self.position ) + np.array(self.screen_size)/2
-        transformed_rect = transformed_img.get_rect(center=camera_pos.tolist())
-        return transformed_img, transformed_rect
-        
-    def update(self, target):
+        # Computes the position and orientation of the sprite in camera coordinates.
+        position_wrt_cam = ( Vector2(sprite.position) - self.position ).rotate( self.orientation ) + Vector2(self.screen_size)/2
+        orientation_wrt_cam = sprite.orientation - self.orientation
+
+        # Calculate the coordinates of the original topleft point in the rotated image.
+        width, height = sprite.image.get_size()
+        s, c = math.sin(math.radians(orientation_wrt_cam)), math.cos(math.radians(orientation_wrt_cam)) 
+        original_topleft = pygame.math.Vector2( max([0, -s*height, -c*width, - s*height - c*width]), max([0, s*width, -c*height, s*width - c*height]) )
+
+        # Convert the offset point to coordinates on the new rotated image
+        pivot_offset = sprite.offset.rotate(-orientation_wrt_cam) + original_topleft
+
+        # Apply the corrected pivot offset to the Sprite rect, to correctly represent the Sprite position in the world wrt to the pivot point
+        rect_origin = position_wrt_cam - pivot_offset
+
+        # Transformed image and rect
+        transformed_image = pygame.transform.rotate(sprite.image, orientation_wrt_cam)
+        transformed_rect = sprite.image.get_rect(topleft=rect_origin)
+
+        return transformed_image, transformed_rect
+
+    def update(self):
         '''
-        Sets a target for the camera to follow, and specifies its behavior.
+        Updates the state of the camera. For now, it just follows the target position/orientation
+        TO DO: expand this method to more compelx camera behaviours.
         '''
-        self.position = np.array(target.rect.center)
-        # self.angle = target.angle
-        self.angle = 0.0
-
-        if self.angle < 0:
-            self.angle += 2*math.pi
-
-    def rot(self, angle):
-        c, s = math.cos(angle), math.sin(angle)
-        return np.array([[c,-s],[s,c]])
-
-
-class CameraAwareGroup(pygame.sprite.Group):
-    def __init__(self, target, screen_size):
-        super().__init__()
-        self.camera = Camera(screen_size)
-        self.target = target
-        if self.target:
-            self.add( self.target )
-
-    def update(self, *args, **kwargs):
-        super().update(*args, **kwargs)
-        self.camera.update(self.target)
-
-        # for key, value in kwargs.items():
-        #     if key == "":
-
-    def draw(self, surface):
-        for sprite in self.sprites():
-            transf_img, transf_rect = self.camera.transform(sprite)
-            surface.blit( transf_img, transf_rect )
+        self.position = self.target.position
+        self.orientation = self.target.orientation

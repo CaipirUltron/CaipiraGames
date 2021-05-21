@@ -1,8 +1,9 @@
 import pygame, sys, math
 from pygame.locals import *
-from pygame.math import Vector2
-from classes.basics.sprite_tilemap import Background, Tile, TileMap
-from classes.cameras import Camera, CameraAwareGroup
+from pygame.math import *
+from classes.basics.tilemap2 import Background, Tile, TileMap
+from classes.basics import BasicSprite, BasicGroup
+from classes.cameras import Camera
 
 PHONE_RESOLUTION = (1440,2960)
 HD1080_RESOLUTION = (1920,1080)
@@ -12,31 +13,35 @@ HD1080_SMALL_RESOLUTION = (480, 270)
 ATARI_RESOLUTION = (192, 160)
 
 pygame.init()
-screen = pygame.display.set_mode(HD720_RESOLUTION)
+screen = pygame.display.set_mode(WINXP_RESOLUTION)
 pygame.display.set_caption("Test Sprite Tiles")
 timer = pygame.time.Clock()
 
-x, y, angle = 0, 300, 0
-radius = 160
-height = 16
-num_floors = 10
-num_sides = 3
-phi = 2*math.pi/num_sides
+print(screen.get_rect())
 
-tileBG = Background( radius, height, num_floors, num_sides )
-player = Tile(radius,height,phi, (x, y), angle, Color("BLUE"))
-# tile2 = Tile(radius+height,height,phi, x, y, angle, Color("BLUE"))
+radius = 640
+height = 32
 
-# tileMap = CameraAwareGroup( player, HD720_RESOLUTION )
-# tileMap.add( player )
-# tileMap.add( tileBG )
+player_image = pygame.image.load('player.png')
+player_size = player_image.get_size()
+player_offset = (player_size[0]/2, player_size[1]/2)
 
-tileMap = TileMap( player, HD720_RESOLUTION, radius, height, 'map1' )
+player_speed = 5
+player_pos = Vector2(0,1000)
+player_angle = 0
+player = BasicSprite(player_image, player_offset, position=player_pos, orientation=player_angle, pivot_flag=True)
+
+camera = Camera(player, WINXP_RESOLUTION)
+
+all_sprites = TileMap( camera, radius, height, 'map1' )
 
 left, right, up, down = False, False, False, False
 
+tile_angle = 0
+
 while True:
 
+    dirty_rects = []
     mouse_x, mouse_y = pygame.mouse.get_pos()
 
     for event in pygame.event.get():
@@ -61,26 +66,31 @@ while True:
                 up = False
             if event.key == pygame.K_DOWN:
                 down = False
+        if event.type == MOUSEWHEEL:
+            player_angle += event.y
 
     if left:
-        dir = Vector2()
-        player.rect.centerx -= 5
+        player_pos += pygame.math.Vector2(-player_speed,0)
     if right:
-        player.rect.centerx += 5
+        player_pos += pygame.math.Vector2(player_speed,0)
     if up:
-        player.rect.centery -= 5
+        player_pos += pygame.math.Vector2(0,-player_speed)
     if down:
-        player.rect.centery += 5
+        player_pos += pygame.math.Vector2(0,player_speed)
 
-    player.angle += 1
+    player.set_pose(position=player_pos, orientation=player_angle)
 
-    print("Player pos = " + str(player.rect.center))
-    print("Player angle = " + str(player.angle))
+    x, y = camera.screen2world( (mouse_x,mouse_y) )
+    value, indexes = all_sprites.get_value( x, y )
 
-    tileMap.update(mouse_x, mouse_y)
+    print("Material = " + str(value))
+    print("Indexes = " + str(indexes))
+
+    tile_angle += -1
+    all_sprites.update()
 
     screen.fill((0, 0, 0))
-    tileMap.draw(screen)
+    dirty_rects = all_sprites.draw(screen)
 
-    pygame.display.update()
+    pygame.display.update(dirty_rects)
     timer.tick(60)

@@ -4,7 +4,7 @@ import numpy as np
 
 from classes.scenes import Scene
 from classes.basics.tilemap import TileMap
-from classes.cameras import Camera, CameraAwareGroup
+
 
 class LevelEditor(Scene):
     """ 
@@ -13,7 +13,7 @@ class LevelEditor(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
 
-        self.filename = 'map1'
+        self.filename = 'map2'
 
         self.background_color = pygame.Color("BLACK")
         self.button_separation = 40
@@ -30,7 +30,7 @@ class LevelEditor(Scene):
         self.mouse_x, self.mouse_y = 0.0, 0.0
         self.mouse_displacement = (0,0)
         self.angle = 0.0
-
+        
         self.level = TileMap(16, 400, 15, filename=self.filename)
         # self.level = TileMap(16, 800, 25, filename=self.filename)
 
