@@ -31,7 +31,7 @@ class LevelEditor(Scene):
         self.mouse_displacement = (0,0)
         self.angle = 0.0
         
-        self.level = TileMap(16, 400, 15, filename=self.filename)
+        self.level = TileMap(32, 4000, 70, filename=self.filename)
         # self.level = TileMap(16, 800, 25, filename=self.filename)
 
         self.level_center = np.array([self.game.center_x, self.game.center_y])

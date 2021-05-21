@@ -57,5 +57,5 @@ class Camera():
         Updates the state of the camera. For now, it just follows the target position/orientation
         TO DO: expand this method to more compelx camera behaviours.
         '''
-        self.position = self.target.position
+        self.position = self.target.position + Vector2(0, -250).rotate(-self.target.orientation)
         self.orientation = self.target.orientation

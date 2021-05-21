@@ -115,7 +115,7 @@ class TileMap(BasicGroup):
         self.num_materials = len(self.materials)
 
         self.load_sprites()
-        self.add( Background( self.internal_radius, self.tile_height, self.num_floors, self.num_sides, color ) )
+        # self.add( Background( self.internal_radius, self.tile_height, self.num_floors, self.num_sides, color ) )
 
     def load_sprites(self):
         '''
