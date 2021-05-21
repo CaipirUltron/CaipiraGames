@@ -2,6 +2,11 @@ import pygame, math
 from pygame.locals import *
 from pygame.math import *
 
+def follow(camera):
+    hor_offset = 0
+    ver_offset = -250
+    camera.position = camera.target.position + Vector2(hor_offset, ver_offset).rotate(-camera.target.orientation)
+    camera.orientation = camera.target.orientation
 
 class Camera():
     '''
@@ -12,8 +17,9 @@ class Camera():
     (iii) Camera position at the screen center (world frame)
     (iv)  Camera orientation                   (world frame)
     '''
-    def __init__(self, target, screen_size, pos=pygame.math.Vector2(0,0), angle=0):
+    def __init__(self, target, camera_method, screen_size, pos=pygame.math.Vector2(0,0), angle=0):
         self.target = target
+        self.camera_method = camera_method
         self.screen_size = screen_size
         self.position = pos
         self.orientation = angle
@@ -55,7 +61,6 @@ class Camera():
     def update(self):
         '''
         Updates the state of the camera. For now, it just follows the target position/orientation
-        TO DO: expand this method to more compelx camera behaviours.
+        TO DO: expand this method to more complex camera behaviours.
         '''
-        self.position = self.target.position + Vector2(0, -250).rotate(-self.target.orientation)
-        self.orientation = self.target.orientation
+        self.state = self.camera_method(self)

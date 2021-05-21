@@ -1,7 +1,7 @@
 import numpy as np
 import os, csv, math, pygame
 from pygame.locals import *
-from classes.basics import BasicSprite, BasicGroup
+from classes.basics import BasicSprite, BasicGroup, Arc
 
 
 class Background(BasicSprite):
@@ -99,7 +99,8 @@ class TileMap(BasicGroup):
                 self.level_shape = value
         self.load_level(self.filename)
 
-        self.num_floors, self.num_sides = self.level_shape[0], self.level_shape[1]
+        self.num_floors = self.level_shape[0]
+        self.num_sides = self.level_shape[1]
         self.phi = 360/self.num_sides
         self.external_radius = self.internal_radius + self.num_floors*self.tile_height
 

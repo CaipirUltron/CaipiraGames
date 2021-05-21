@@ -2,8 +2,8 @@ import pygame, sys
 from pygame.locals import *
 from pygame.math import *
 from classes.basics.tilemap2 import TileMap
-from classes.basics import BasicSprite
-from classes.cameras import Camera
+from classes.basics import BasicSprite, Arc
+from classes.cameras import Camera, follow
 from classes.characters.player2 import Player
 
 PHONE_RESOLUTION = (1440,2960)
@@ -19,6 +19,7 @@ pygame.display.set_caption("Test Sprite Tiles")
 timer = pygame.time.Clock()
 
 print(screen.get_rect())
+print(Arc(100,10,30))
 
 radius = 640
 height = 32
@@ -29,7 +30,7 @@ player_offset = (player_size[0]/2, player_size[1]/2)
 
 player = Player()
 
-camera = Camera(player, HD720_RESOLUTION)
+camera = Camera(player, follow, HD720_RESOLUTION)
 
 all_sprites = TileMap( camera, radius, height, 'map1' )
 # all_sprites = TileMap( camera, radius, height, 'BFMap' )

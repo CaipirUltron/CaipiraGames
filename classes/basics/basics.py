@@ -1,6 +1,20 @@
 import math, pygame
 from pygame.locals import *
-from classes.cameras import Camera
+
+
+class Arc():
+    '''
+    Class arc for solid arcs.
+    Similar to Rect, but for arcs.
+    '''
+    def __init__(self, radius, height, angle):
+        self.radius = radius
+        self.height = height
+        self.angle = angle
+
+    def __str__(self):
+        return "<Arc radius:%s height:%s angle:%s>" % (self.radius, self.height, self.angle)
+
 
 class BasicSprite(pygame.sprite.Sprite):
     '''
