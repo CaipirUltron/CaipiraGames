@@ -1,19 +1,49 @@
 import math, pygame
 from pygame.locals import *
-
+from pygame.math import *
 
 class Arc():
     '''
-    Class arc for solid arcs.
-    Similar to Rect, but for arcs.
+    Class for solid arcs. position is the topleft position of the smallest Rect containing the Arc.
+    A solid arc can be identified by three parameters: arc radius, arc height and arc angular width, or angle.
     '''
-    def __init__(self, radius, height, angle):
-        self.radius = radius
-        self.height = height
-        self.angle = angle
+    def __init__(self, center, radius, height, angular_width):
+
+        # Arc parameters
+        self.center = center                   # center coordinates
+        self.radius = radius                   # radius
+        self.height = height                   # height
+        self.angular_width = angular_width     # angular width (arc angle)
+
+        # Compute necessary dimensions for the rect
+        self.distortion = self.radius*( 1 -math.cos( ( math.radians(self.angular_width)/2 ) ) )
+        rect_width = 2*( self.radius + self.height )*math.sin(math.radians(self.angular_width)/2)
+        rect_height = self.distortion + self.height
+
+        topleft = Vector2( center.x - rect_width/2, center.y + self.radius - self.distortion )
+        self.rect = pygame.Rect( topleft, (rect_width, rect_height) )
+
+    def draw_arc(self, surface, color, resolution=20, fill=False):
+
+        points = []
+        centerx = self.rect.width/2
+        centery = self.distortion - self.radius
+        for i in range(resolution+1):
+            x = centerx + self.radius*math.sin( (i-resolution/2)*(math.radians(self.angular_width)/resolution) )
+            y = centery + self.radius*math.cos( (i-resolution/2)*(math.radians(self.angular_width)/resolution) )
+            points.append( (x,y) )
+        for i in range(resolution+1):
+            x = centerx + ( self.radius + self.height )*math.sin( -(i-resolution/2)*(math.radians(self.angular_width)/resolution) )
+            y = centery + ( self.radius + self.height )*math.cos( -(i-resolution/2)*(math.radians(self.angular_width)/resolution) )
+            points.append( (x,y) )
+        if fill:
+            pygame.draw.polygon( surface, color, points )
+        else:
+            # print(start_points)
+            pygame.draw.lines( surface, color, True, points )
 
     def __str__(self):
-        return "<Arc radius:%s height:%s angle:%s>" % (self.radius, self.height, self.angle)
+        return "<x: %s, y: %s, radius:%s height:%s arc width:%s>" % (self.radius, self.height, self.angular_width)
 
 
 class BasicSprite(pygame.sprite.Sprite):

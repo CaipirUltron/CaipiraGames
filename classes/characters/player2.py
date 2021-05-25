@@ -11,8 +11,8 @@ class Player(BasicSprite):
         offset = (size[0]/2, size[1]/2)
         super().__init__(image, offset)
 
-        self.speed = 10
-        self.position = Vector2(0,1100)
+        self.speed = 400*(1/60)
+        self.position = Vector2(0,800)
         self.orientation = 0
         self.range = self.position.length()
 
@@ -23,7 +23,7 @@ class Player(BasicSprite):
         down = pygame.key.get_pressed()[pygame.K_DOWN]
 
         unit_radial = self.position.normalize()
-        unit_left = unit_radial.rotate(90)
+        unit_left = unit_radial.rotate(90).normalize()
 
         if left or right:
             if left:

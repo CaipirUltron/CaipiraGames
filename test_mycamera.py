@@ -19,7 +19,6 @@ pygame.display.set_caption("Test Sprite Tiles")
 timer = pygame.time.Clock()
 
 print(screen.get_rect())
-print(Arc(100,10,30))
 
 radius = 640
 height = 32
@@ -32,8 +31,7 @@ player = Player()
 
 camera = Camera(player, follow, HD720_RESOLUTION)
 
-all_sprites = TileMap( camera, radius, height, 'map1' )
-# all_sprites = TileMap( camera, radius, height, 'BFMap' )
+all_sprites = TileMap( camera, 'map1' )
 
 left, right, up, down = False, False, False, False
 

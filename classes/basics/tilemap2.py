@@ -1,6 +1,7 @@
 import numpy as np
-import os, csv, math, pygame
+import os, csv, json, math, pygame
 from pygame.locals import *
+from pygame.math import *
 from classes.basics import BasicSprite, BasicGroup, Arc
 
 
@@ -42,67 +43,51 @@ class Tile(BasicSprite):
     '''
     Basic curved tile.
     '''
-    def __init__(self, radius, height, phi, angle=0, color=pygame.Color("RED"), *groups):
+    def __init__(self, radius, height, angular_width, angle=0, color=pygame.Color("RED"), *groups):
         self._layer = -1
 
         # Tile parameters
-        self.radius = radius            # tile radius
-        self.height = height            # tile height
-        self.phi = math.radians(phi)    # tile angle
-        self.color = color              # tile color
-
-        # Compute necessary dimensions for the tile surface
-        self.distortion = self.radius*( 1 -math.cos(self.phi/2) )
-        self.img_width = 2*( self.radius + self.height )*math.sin(self.phi/2)
-        self.img_height = self.distortion + self.height
+        self.arc = Arc( Vector2(0,0), radius, height, angular_width ) # tile arc
+        self.color = color                                            # tile color
 
         # Initialize BasicSprite surface
-        image = pygame.Surface( ( self.img_width, self.img_height ), pygame.SRCALPHA)
-        offset = ( self.img_width/2, self.distortion - self.radius )
-        self.draw_base_tile(image, 10)
+        image = pygame.Surface( ( self.arc.rect.width, self.arc.rect.height ), pygame.SRCALPHA)
+        offset = ( self.arc.rect.width/2, self.arc.distortion - self.arc.radius )
         super().__init__(image, offset, orientation=angle, *groups)
 
-    def draw_base_tile(self, surface, resolution):
-        points = []
-        centerx = self.img_width/2
-        centery = -(self.radius*math.cos(self.phi/2))
-        for i in range(resolution+1):
-            x = centerx + self.radius*math.sin( (i-resolution/2)*(self.phi/resolution) )
-            y = centery + self.radius*math.cos( (i-resolution/2)*(self.phi/resolution) )
-            points.append( (x,y) )
-        for i in range(resolution+1):
-            x = centerx + ( self.radius + self.height )*math.sin( -(i-resolution/2)*(self.phi/resolution) )
-            y = centery + ( self.radius + self.height )*math.cos( -(i-resolution/2)*(self.phi/resolution) )
-            points.append( (x,y) )
-        pygame.draw.polygon( surface, self.color, points )
+        # Draws sprite
+        self.arc.draw_arc(image, self.color, fill=True)
 
 
 class TileMap(BasicGroup):
     '''
     Tile map functionality.
     '''
-    default_shape = (10,100)
-
-    def __init__(self, camera, internal_radius, tile_height, filename, color=pygame.Color("WHITE"), **kwargs):
+    def __init__(self, camera, filename):
         super().__init__(camera)
 
-        self.internal_radius = internal_radius
-        self.tile_height = tile_height
-        self.filename = filename
-        self.level_shape = TileMap.default_shape
+        default_num_floors = 10
+        default_num_sides = 100
+        default_map = np.zeros([default_num_floors,default_num_sides])
+        self.map_config = ...
+        {
+            "internal_radius": 300,
+            "tile_height": 16,
+            "angular_width": 360,
+            "tilegrid": default_map.tolist()
+        }
 
-        if type(tile_height) != int:
-            raise Exception("Tile size must be an integer.")
+        self.load_level(filename)
+        self.internal_radius = self.map_config["internal_radius"]
+        self.tile_height = self.map_config["tile_height"]
+        self.angular_width = self.map_config["angular_width"]
+        self.tilegrid = np.array(self.map_config["tilegrid"])
 
-        for key, value in kwargs.items():
-            if key == 'level_shape':
-                self.level_shape = value
-        self.load_level(self.filename)
-
-        self.num_floors = self.level_shape[0]
-        self.num_sides = self.level_shape[1]
-        self.phi = 360/self.num_sides
+        self.num_floors, self.num_sides = self.tilegrid.shape
+        self.phi = self.angular_width/self.num_sides
         self.external_radius = self.internal_radius + self.num_floors*self.tile_height
+
+        self.solid_arc = Arc( Vector2(0,0), self.internal_radius, self.num_floors*self.tile_height, self.angular_width )
 
         self.materials = {
             1: pygame.Color("WHITE"),
@@ -125,7 +110,7 @@ class TileMap(BasicGroup):
         for i in range(self.num_floors):
             for j in range(self.num_sides):
                 radius = self.internal_radius + self.tile_height*i
-                angle = self.phi*j
+                angle = self.phi*j+self.phi/2
                 if self.tilegrid[i,j] > 1:
                     color = self.materials[self.tilegrid[i,j]]
                     tile = Tile( radius, self.tile_height, self.phi, angle, color )
@@ -137,41 +122,34 @@ class TileMap(BasicGroup):
         If the position is outside of the grid, returns None.
         '''
         radius, angle = self.to_polar(x, y)
-        if radius >= self.internal_radius and radius <= self.external_radius:
+        print("Radius = "+ str(radius))
+        print("Angle = "+ str(angle))
+        if ( radius >= self.internal_radius and radius <= self.external_radius ) and ( angle <= self.angular_width and True ):
             radii = np.array([ self.tile_height*(i+1) for i in range(self.num_floors) ]) + self.internal_radius
-            angles = np.array([ self.phi*i + self.phi/2 for i in range(self.num_sides) ])
+            angles = np.array([ self.phi*(i+1) for i in range(self.num_sides) ])
 
             i_index = np.nonzero(radii>=radius)[0][0]
-            if angle < 360-self.phi/2:
+            if len(np.nonzero(angles>=angle)[0]) != 0:
                 j_index = np.nonzero(angles>=angle)[0][0]
             else:
-                j_index = 0
+                return None, None
             value = self.tilegrid[ i_index, j_index ]
-
             return value, (i_index, j_index)
         else:
             return None, None
 
     def load_level(self, filename):
         try:
-            grid = []
-            with open(os.path.join(filename+str('.csv'))) as data:
-                data = csv.reader(data, delimiter=',')
-                for row in data:
-                    grid.append(list(row))
-            self.tilegrid = np.array(grid,dtype=int)
-            self.level_shape = self.tilegrid.shape
+            with open(filename+str('.json')) as file:
+                self.map_config = json.load(file)
         except IOError:
-            print("Couldn't locate "+filename+str('.csv'))
-            print("Initializing grid and creating new file "+filename+str('.csv'))
-            self.tilegrid = np.zeros(self.level_shape,dtype=int)
+            print("Couldn't locate "+filename+str(".json"))
+            print("Initializing grid and creating new configuration file "+filename+str(".json"))
             self.save_level(filename)
 
     def save_level(self, filename):
-        with open(filename+str('.csv'), mode='w', newline='') as file:
-            file_writer = csv.writer(file, delimiter=',')
-            for row in range(self.level_shape[0]):
-                file_writer.writerow(self.tilegrid[row].tolist())
+        with open(filename+str(".json"), "w") as file:
+            json.dump(self.map_config, file)
         print("Tile map saved.")
 
     @staticmethod
@@ -183,5 +161,4 @@ class TileMap(BasicGroup):
         angle = math.degrees(math.atan2( x,y ))
         if angle < 0:
             angle += 360
-
         return radius, angle
