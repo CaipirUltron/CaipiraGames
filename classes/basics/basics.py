@@ -58,6 +58,8 @@ class BasicSprite(pygame.sprite.Sprite):
     def __init__(self, image, offset, position=pygame.math.Vector2(0,0), orientation=0, *groups):
         super().__init__(*groups)
         self.image = image
+        self.rect = self.image.get_rect()
+
         self.offset = pygame.math.Vector2(offset)
         self.position = position
         self.orientation = orientation
@@ -99,6 +101,7 @@ class BasicGroup(pygame.sprite.LayeredUpdates):
                     dirty.append(new_rect)
                     dirty.append(rect)
             self.spritedict[sprite] = new_rect
+            sprite.rect = transf_rect
         return dirty
 
 

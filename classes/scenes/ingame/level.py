@@ -1,8 +1,9 @@
 import pygame, sys
 from pygame.locals import *
+from pygame.sprite import LayeredUpdates
 
 from classes.scenes import Scene
-from classes.basics.tilemap import TileMap, Background
+from classes.basics import TileMap, Background, Arc
 from classes.cameras import Camera, follow
 from classes.characters.player import Player
 
@@ -28,11 +29,11 @@ class Level(Scene):
         self.camera = Camera(self.player, follow, (self.game.width, self.game.height))
 
         # Initialize level
-        self.level = TileMap( self.camera, 'map1' )
+        self.map = TileMap( self.camera, 'map1' )
 
         # Add background
         background = Background()
-        self.level.add(background)
+        self.map.add(background)
 
     def getInput(self):
 
@@ -41,7 +42,7 @@ class Level(Scene):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-                self.level.save_level(self.filename)
+                self.map.save_level(self.filename)
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
@@ -68,19 +69,27 @@ class Level(Scene):
     def updateLogic(self):
         
         # Loop on the number of materials
-        if self.curr_material > self.level.num_materials:
+        if self.curr_material > self.map.num_materials:
             self.curr_material = 1
         elif self.curr_material < 1:
-            self.curr_material = self.level.num_materials
+            self.curr_material = self.map.num_materials
 
-        x, y = self.camera.screen2world( (self.mouse_x,self.mouse_y) )
-        value, indexes = self.level.get_value( x, y )
+        x, y = self.camera.screen2world( (self.mouse_x, self.mouse_y) )
+        value, indexes = self.map.get_value( x, y )
 
         print("Material = " + str(value))
         print("Indexes = " + str(indexes))
 
-        self.level.update()
+        sprites = self.map.get_sprites_at((self.mouse_x, self.mouse_y))
+        if sprites:
+            for sprite in sprites:
+                print("Number of sprites here = " + str(len(sprites)))
+                print(sprite.rect)
+        else:
+            print("No sprites here.")
+
+        self.map.update()
 
     def updateDisplay(self):
-        self.game.screen.fill((0, 0, 0))
-        self.level.draw(self.game.screen)
+        self.game.screen.fill(Color("BLACK"))
+        self.map.draw(self.game.screen)

@@ -35,6 +35,8 @@ class Tile(BasicSprite):
         # Draws sprite
         self.arc.draw_arc(image, self.color, fill=True)
 
+    def collidepoint(self, x, y):
+        pass
 
 class TileMap(BasicGroup):
     '''
@@ -78,7 +80,6 @@ class TileMap(BasicGroup):
         self.num_materials = len(self.materials)
 
         self.load_sprites()
-        # self.add( Background( self.internal_radius, self.tile_height, self.num_floors, self.num_sides, color ) )
 
     def load_sprites(self):
         '''
@@ -93,13 +94,17 @@ class TileMap(BasicGroup):
                     tile = Tile( radius, self.tile_height, self.phi, angle, color )
                     self.add( tile )
 
+    def get_tiles(self, x, y):
+        sprite_list = self.get_sprites_at((x,y))
+
+
     def get_value(self, x, y):
         '''
         Returns the tuple (value, index), containing the grid value and index at position x,y (world coordinates). 
         If the position is outside of the grid, returns None.
         '''
         radius, angle = self.to_polar(x, y)
-        if ( radius >= self.internal_radius and radius <= self.external_radius ) and ( angle <= self.angular_width and True ):
+        if ( radius >= self.internal_radius and radius <= self.external_radius ) and ( angle <= self.angular_width ):
             radii = np.array([ self.tile_height*(i+1) for i in range(self.num_floors) ]) + self.internal_radius
             angles = np.array([ self.phi*(i+1) for i in range(self.num_sides) ])
 
