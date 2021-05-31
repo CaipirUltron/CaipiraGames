@@ -1,6 +1,7 @@
-import math, pygame
+import math, pygame, pymunk
 from pygame.locals import *
 from pygame.math import *
+
 
 class Arc():
     '''
@@ -39,7 +40,6 @@ class Arc():
         if fill:
             pygame.draw.polygon( surface, color, points )
         else:
-            # print(start_points)
             pygame.draw.lines( surface, color, True, points )
 
     def __str__(self):
@@ -49,28 +49,18 @@ class Arc():
 class BasicSprite(pygame.sprite.Sprite):
     '''
     This class expands upon pygamne.sprite.Sprite, allowing sprite rotation around a pivot point.
-    Mmebers:
+    Members:
     (i)   Surface image
-    (ii)  Vector2 position    (world coordinates)
-    (iii) float orientation   (world coordinates)
-    (iv)  Vector2 pivot point (local coordinates)
+    (ii)  offset to position  (local coordinates)
+    (iii) Vector2 position    (world coordinates)
+    (iv)  float orientation   (world coordinates)
     '''
-    def __init__(self, image, offset, position=pygame.math.Vector2(0,0), orientation=0, pivot_flag=False, *groups):
+    def __init__(self, image, offset, position=pygame.math.Vector2(0,0), orientation=0, *groups):
         super().__init__(*groups)
         self.image = image
         self.offset = pygame.math.Vector2(offset)
-        self.pivot_flag = pivot_flag
-        self.set_pose(position=position, orientation=orientation)
-
-    def set_pose(self, **kwargs):
-        '''
-        Sets the sprite current world position/orientation.
-        '''
-        for key in kwargs:
-            if key.lower() == 'position':
-                self.position = kwargs[key]
-            if key.lower() == 'orientation':
-                self.orientation = kwargs[key]
+        self.position = position
+        self.orientation = orientation
 
 
 class BasicGroup(pygame.sprite.LayeredUpdates):
@@ -110,3 +100,26 @@ class BasicGroup(pygame.sprite.LayeredUpdates):
                     dirty.append(rect)
             self.spritedict[sprite] = new_rect
         return dirty
+
+
+class Ball(BasicSprite):
+    def __init__(self, space, radius, *groups):
+
+        self.space = space
+
+        image = pygame.Surface((2*radius,2*radius), pygame.SRCALPHA, 32)
+        offset = (radius,radius)
+        pygame.draw.circle( image, Color("RED"), offset, radius )
+        super().__init__( image, offset, *groups )
+
+        self.body = pymunk.Body(mass = 1.0, moment = 1000)
+        self.shape = pymunk.Circle(self.body, radius)
+        self.space.add( self.body, self.shape )
+
+    def update(self):
+        self.position = self.convert( self.body.position )
+
+    def convert(self, position):
+        # width, height = screen_size[0], screen_size[1]
+        transf_coord = ( position[0], -position[1] )
+        return transf_coord

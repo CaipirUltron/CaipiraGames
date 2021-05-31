@@ -1,4 +1,4 @@
-import pygame, math
+import pygame, pymunk, math
 from pygame.locals import *
 from pygame.math import *
 from classes.basics import BasicSprite
@@ -11,7 +11,7 @@ class Player(BasicSprite):
         offset = (size[0]/2, size[1]/2)
         super().__init__(image, offset)
 
-        self.speed = 400*(1/60)
+        self.speed = 600*(1/60)
         self.position = Vector2(0,800)
         self.orientation = 0
         self.range = self.position.length()

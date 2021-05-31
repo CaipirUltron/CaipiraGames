@@ -1,4 +1,4 @@
-import pygame
+import pygame, pymunk
 from abc import ABC, abstractmethod
 
 class Scene(ABC):
@@ -10,9 +10,12 @@ class Scene(ABC):
         self.game = game
         self.name = name
         self.running = False
-
         self.update_all = True
         self.dirty_rects = []
+
+        self.use_physics = True
+        if self.use_physics:
+            self.space = pymunk.Space()
 
     def changeScene(self, scene_name):
         self.game.setActiveScene(scene_name)
@@ -55,4 +58,6 @@ class Scene(ABC):
                 pygame.display.update()
             else:
                 pygame.display.update(self.dirty_rects)
+            if self.use_physics:
+                self.space.step(1/self.game.fps)
             self.game.clock.tick(self.game.fps)

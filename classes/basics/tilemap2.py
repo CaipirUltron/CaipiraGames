@@ -9,34 +9,11 @@ class Background(BasicSprite):
     '''
     Tile map background sprite.
     '''
-    def __init__(self, internal_radius, tile_height, num_floors, num_sides, color=pygame.Color("WHITE"), *groups):
-        self._layer = 0
-
-        self.internal_radius = internal_radius
-        self.tile_height = tile_height
-        self.num_floors = num_floors
-        self.num_sides = num_sides
-        self.external_radius = self.internal_radius + self.num_floors*self.tile_height
-        self.phi = 2*math.pi/self.num_sides
-        self.color = color
-
-        image = pygame.Surface( (2*self.external_radius, 2*self.external_radius), pygame.SRCALPHA )
-        self.drawBackground(image)
-        super().__init__(image, (self.external_radius,self.external_radius), *groups)
-
-    def drawBackground(self, image):
-        '''
-        Draws the tile map dots to the specified surface. Returns a list with modified rects.
-        '''
-        # Central point
-        pygame.draw.circle(image, self.color, (self.external_radius, self.external_radius), 1 )
-
-        # Corner points
-        for j in range(self.num_sides):
-            for floor in range(self.num_floors+1):
-                x = self.external_radius + ( self.internal_radius + self.tile_height*floor )*math.sin( self.phi*j - self.phi/2 )
-                y = self.external_radius + ( self.internal_radius + self.tile_height*floor )*math.cos( self.phi*j - self.phi/2 )
-                pygame.draw.circle(image, self.color, (x,y), 1 )
+    def __init__(self, *groups):
+        self._layer = -1
+        image = pygame.transform.scale(pygame.image.load("images/sprites/bg/axis.png"), (1200,1200) ).convert_alpha()
+        img_size = image.get_size()
+        super().__init__(image, offset=(img_size[0]/2, img_size[1]/2), *groups)
 
 
 class Tile(BasicSprite):
@@ -122,8 +99,6 @@ class TileMap(BasicGroup):
         If the position is outside of the grid, returns None.
         '''
         radius, angle = self.to_polar(x, y)
-        print("Radius = "+ str(radius))
-        print("Angle = "+ str(angle))
         if ( radius >= self.internal_radius and radius <= self.external_radius ) and ( angle <= self.angular_width and True ):
             radii = np.array([ self.tile_height*(i+1) for i in range(self.num_floors) ]) + self.internal_radius
             angles = np.array([ self.phi*(i+1) for i in range(self.num_sides) ])
