@@ -8,6 +8,7 @@ def follow(camera):
     camera.position = camera.target.position + Vector2(hor_offset, ver_offset).rotate(-camera.target.orientation)
     camera.orientation = camera.target.orientation
 
+
 class Camera():
     '''
     Base class for a simple camera. 

@@ -1,37 +1,40 @@
-import pygame
-from classes.characters import Character
+import pygame, pymunk, math
+from pygame.locals import *
+from pygame.math import *
+from classes.basics import BasicSprite
 
-class Player(Character):
-    """ 
-    Class for the player character. The implementation of player controls can be found here.
-    """
-    def followMouse(self, mouse_x, mouse_y):
-        error_x = mouse_x - self.x
-        error_y = mouse_y - self.y
-        norm_error = ( error_x**2 + error_y**2 )**0.5
-        if norm_error > 100:
-            self.k = 2.0
-        else:
-            self.k = 20.0
-        self.speed_x = self.k*error_x
-        self.speed_y = self.k*error_y
 
-    def startMovement(self, pressed_key):
-        if pressed_key == pygame.K_LEFT:
-            self.speed_x += -1
-        if pressed_key == pygame.K_RIGHT:
-            self.speed_x += +1
-        if pressed_key == pygame.K_UP:
-            self.speed_y += -1
-        if pressed_key == pygame.K_DOWN:
-            self.speed_y += +1
+class Player(BasicSprite):
+    def __init__(self):
+        image = pygame.image.load('player.png')
+        size = image.get_size()
+        offset = (size[0]/2, size[1]/2)
+        super().__init__(image, offset)
 
-    def endMovement(self, released_key):
-        if released_key == pygame.K_LEFT:
-            self.speed_x -= -1
-        if released_key == pygame.K_RIGHT:
-            self.speed_x -= +1
-        if released_key == pygame.K_UP:
-            self.speed_y -= -1
-        if released_key == pygame.K_DOWN:
-            self.speed_y -= +1
+        self.speed = 600*(1/60)
+        self.position = Vector2(0,800)
+        self.orientation = 0
+        self.range = self.position.length()
+
+    def update(self):
+        left = pygame.key.get_pressed()[pygame.K_LEFT]
+        right = pygame.key.get_pressed()[pygame.K_RIGHT]
+        up = pygame.key.get_pressed()[pygame.K_UP]
+        down = pygame.key.get_pressed()[pygame.K_DOWN]
+
+        unit_radial = self.position.normalize()
+        unit_left = unit_radial.rotate(90).normalize()
+
+        if left or right:
+            if left:
+                self.position += unit_left*self.speed
+            if right:
+                self.position -= unit_left*self.speed
+            self.orientation = math.degrees(math.atan2( self.position.x,self.position.y ))
+            self.position.x = self.range*math.sin( math.radians(self.orientation) )
+            self.position.y = self.range*math.cos( math.radians(self.orientation) )
+        if up:
+            self.position -= unit_radial*self.speed
+        if down:
+            self.position += unit_radial*self.speed
+        self.range = self.position.length()
