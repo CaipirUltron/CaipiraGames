@@ -29,7 +29,8 @@ class Level(Scene):
         self.camera = Camera(self.player, follow, (self.game.width, self.game.height))
 
         # Initialize level
-        self.map = TileMap( self.camera, 'map1' )
+        self.filename = 'map1'
+        self.map = TileMap( self.camera, self.filename )
 
         # Add background
         background = Background()
@@ -75,18 +76,15 @@ class Level(Scene):
             self.curr_material = self.map.num_materials
 
         x, y = self.camera.screen2world( (self.mouse_x, self.mouse_y) )
-        value, indexes = self.map.get_value( x, y )
+        value, indexes = self.map.get_value_at( x, y )
 
         print("Material = " + str(value))
         print("Indexes = " + str(indexes))
 
-        sprites = self.map.get_sprites_at((self.mouse_x, self.mouse_y))
-        if sprites:
-            for sprite in sprites:
-                print("Number of sprites here = " + str(len(sprites)))
-                print(sprite.rect)
-        else:
-            print("No sprites here.")
+        touching_tiles = self.map.get_tiles_at(self.mouse_x, self.mouse_y)
+        if touching_tiles:
+            for tile in touching_tiles:
+                tile.kill()
 
         self.map.update()
 

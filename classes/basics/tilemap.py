@@ -5,6 +5,17 @@ from pygame.math import *
 from classes.basics import BasicSprite, BasicGroup, Arc
 
 
+def to_polar(x, y):
+    '''
+    Converts cartesian coords (x,y) to polar coords (radius, angle).
+    '''
+    radius = math.sqrt( x**2 + y**2 )
+    angle = math.degrees(math.atan2( x,y ))
+    if angle < 0:
+        angle += 360
+    return radius, angle
+
+
 class Background(BasicSprite):
     '''
     Tile map background sprite.
@@ -35,8 +46,18 @@ class Tile(BasicSprite):
         # Draws sprite
         self.arc.draw_arc(image, self.color, fill=True)
 
-    def collidepoint(self, x, y):
-        pass
+    def collidepoint(self, world_x, world_y):
+        '''
+        Checks if given world position is inside the tile.
+        '''
+        radius, angle = to_polar(world_x, world_y)
+        is_in_radius = ( radius >= self.arc.radius ) and ( radius < self.arc.radius + self.arc.height )
+        is_in_angle = ( angle >= self.orientation - self.arc.angular_width/2 ) and ( angle < self.orientation + self.arc.angular_width/2 )
+        if is_in_radius and is_in_angle:
+            return True
+        else:
+            return False
+
 
 class TileMap(BasicGroup):
     '''
@@ -83,7 +104,7 @@ class TileMap(BasicGroup):
 
     def load_sprites(self):
         '''
-        This method creates the sprites in the screen.
+        Loads the sprites in the screen.
         '''
         for i in range(self.num_floors):
             for j in range(self.num_sides):
@@ -94,16 +115,27 @@ class TileMap(BasicGroup):
                     tile = Tile( radius, self.tile_height, self.phi, angle, color )
                     self.add( tile )
 
-    def get_tiles(self, x, y):
-        sprite_list = self.get_sprites_at((x,y))
+    def get_tiles_at(self, mouse_x, mouse_y):
+        '''
+        Returns a list with all tiles at a given mouse position.
+        '''
+        sprite_list = self.get_sprites_at((mouse_x, mouse_y))
+        world_x, world_y = self.camera.screen2world( (mouse_x, mouse_y) )
 
+        colliding_tiles = []
+        for sprite in sprite_list:
+            if type(sprite) == Tile:
+                if sprite.collidepoint( world_x, world_y ):
+                    colliding_tiles.append(sprite)
 
-    def get_value(self, x, y):
+        return colliding_tiles
+
+    def get_value_at(self, x, y):
         '''
         Returns the tuple (value, index), containing the grid value and index at position x,y (world coordinates). 
         If the position is outside of the grid, returns None.
         '''
-        radius, angle = self.to_polar(x, y)
+        radius, angle = to_polar(x, y)
         if ( radius >= self.internal_radius and radius <= self.external_radius ) and ( angle <= self.angular_width ):
             radii = np.array([ self.tile_height*(i+1) for i in range(self.num_floors) ]) + self.internal_radius
             angles = np.array([ self.phi*(i+1) for i in range(self.num_sides) ])
@@ -113,6 +145,7 @@ class TileMap(BasicGroup):
                 j_index = np.nonzero(angles>=angle)[0][0]
             else:
                 return None, None
+
             value = self.tilegrid[ i_index, j_index ]
             return value, (i_index, j_index)
         else:
@@ -131,14 +164,3 @@ class TileMap(BasicGroup):
         with open(filename+str(".json"), "w") as file:
             json.dump(self.map_config, file)
         print("Tile map saved.")
-
-    @staticmethod
-    def to_polar(x, y):
-        '''
-        Converts cartesian coords (x,y) to polar coords (radius, angle).
-        '''
-        radius = math.sqrt( x**2 + y**2 )
-        angle = math.degrees(math.atan2( x,y ))
-        if angle < 0:
-            angle += 360
-        return radius, angle

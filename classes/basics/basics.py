@@ -101,7 +101,7 @@ class BasicGroup(pygame.sprite.LayeredUpdates):
                     dirty.append(new_rect)
                     dirty.append(rect)
             self.spritedict[sprite] = new_rect
-            sprite.rect = transf_rect
+            sprite.rect = new_rect
         return dirty
 
 
