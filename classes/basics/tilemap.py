@@ -108,18 +108,21 @@ class TileMap(BasicGroup):
         '''
         for i in range(self.num_floors):
             for j in range(self.num_sides):
-                radius = self.internal_radius + self.tile_height*i
-                angle = self.phi*j+self.phi/2
                 if self.tilegrid[i,j] > 1:
                     color = self.materials[self.tilegrid[i,j]]
-                    tile = Tile( radius, self.tile_height, self.phi, angle, color )
-                    self.add( tile )
+                    self.add_tile((i,j), color)
+
+    def add_tile( self, indexes, color ):
+        radius = self.internal_radius + self.tile_height*indexes[0]
+        angle = self.phi*indexes[1]+self.phi/2
+        tile = Tile( radius, self.tile_height, self.phi, angle, color )
+        self.add( tile )
 
     def get_tiles_at(self, mouse_x, mouse_y):
         '''
         Returns a list with all tiles at a given mouse position.
         '''
-        sprite_list = self.get_sprites_at((mouse_x, mouse_y))
+        sprite_list = self.get_sprites_at( (mouse_x, mouse_y) )
         world_x, world_y = self.camera.screen2world( (mouse_x, mouse_y) )
 
         colliding_tiles = []
@@ -127,8 +130,11 @@ class TileMap(BasicGroup):
             if type(sprite) == Tile:
                 if sprite.collidepoint( world_x, world_y ):
                     colliding_tiles.append(sprite)
-
         return colliding_tiles
+
+    def set_value_at(self, value, indexes):
+        self.tilegrid[ indexes[0], indexes[1] ] = value
+        self.map_config["tilegrid"] = self.tilegrid.tolist()
 
     def get_value_at(self, x, y):
         '''

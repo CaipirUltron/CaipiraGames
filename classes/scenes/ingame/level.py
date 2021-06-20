@@ -1,9 +1,8 @@
 import pygame, sys
 from pygame.locals import *
-from pygame.sprite import LayeredUpdates
 
 from classes.scenes import Scene
-from classes.basics import TileMap, Background, Arc
+from classes.basics import Tile, TileMap, Background, to_polar
 from classes.cameras import Camera, follow
 from classes.characters.player import Player
 
@@ -20,7 +19,18 @@ class Level(Scene):
             "right": False,
             "up": False,
             "down": False,
+            "mouse_left": False,
+            "mouse_scroll": False,
+            "mouse_right": False
         }
+
+        self.button_separation = 40
+        self.button_radius = 15
+        self.ponter_size = 8
+        self.mouse_x, self.mouse_y = 0.0, 0.0
+        self.x, self.y = 0.0, 0.0
+        self.value_at = 0
+        self.indexes_at = (0,0)
 
         # Add player
         self.player = Player()
@@ -64,8 +74,26 @@ class Level(Scene):
                     self.buttons["up"] = False
                 if event.key == pygame.K_DOWN:
                     self.buttons["down"] = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.buttons["mouse_left"] = True
+                if event.button == 2:
+                    self.buttons["mouse_scroll"] = True
+                if event.button == 3:
+                    self.buttons["mouse_right"] = True
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.buttons["mouse_left"] = False
+                if event.button == 2:
+                    self.buttons["mouse_scroll"] = False
+                if event.button == 3:
+                    self.buttons["mouse_right"] = False
             if event.type == MOUSEWHEEL:
-                self.player.orientation += event.y
+                # self.player.orientation += event.y
+                if event.y < 0:
+                    self.curr_material += 1
+                if event.y > 0:
+                    self.curr_material -= 1
   
     def updateLogic(self):
         
@@ -75,19 +103,43 @@ class Level(Scene):
         elif self.curr_material < 1:
             self.curr_material = self.map.num_materials
 
+        # Get material and indexes at the mouse position
         x, y = self.camera.screen2world( (self.mouse_x, self.mouse_y) )
-        value, indexes = self.map.get_value_at( x, y )
+        self.value_at, self.indexes_at = self.map.get_value_at( x, y )
 
-        print("Material = " + str(value))
-        print("Indexes = " + str(indexes))
+        print("Material = " + str(self.value_at))
+        print("Indexes = " + str(self.indexes_at))
 
-        touching_tiles = self.map.get_tiles_at(self.mouse_x, self.mouse_y)
-        if touching_tiles:
-            for tile in touching_tiles:
-                tile.kill()
+        # Update map matrix 
+        if self.indexes_at:
+            if self.buttons["mouse_left"]:
+                self.map.set_value_at(self.curr_material, self.indexes_at)
+            if self.buttons["mouse_right"]:
+                self.map.set_value_at(0, self.indexes_at)
 
         self.map.update()
 
     def updateDisplay(self):
         self.game.screen.fill(Color("BLACK"))
         self.map.draw(self.game.screen)
+
+        # Update tiles
+        if self.indexes_at:
+            touching_tiles = self.map.get_tiles_at(self.mouse_x, self.mouse_y)
+            if touching_tiles:
+                for tile in touching_tiles:
+                    if self.buttons["mouse_left"]:
+                        tile.kill()
+                        self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
+                    if self.buttons["mouse_right"]:
+                        tile.kill()
+            else:
+                if self.buttons["mouse_left"]:
+                    self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
+
+        # Draw mouse pointer
+        pygame.draw.circle(self.game.screen, self.map.materials[self.curr_material], (self.mouse_x,self.mouse_y), self.ponter_size )
+
+        # Draw menu
+        for material in self.map.materials:
+            pygame.draw.circle(self.game.screen, self.map.materials[material], ( 2*self.button_radius , int(material)*self.button_separation ), self.button_radius )

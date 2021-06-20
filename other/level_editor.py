@@ -28,10 +28,7 @@ if __name__ == "__main__":
                 pygame.quit()
                 sys.exit()
 
-
         pygame.draw.rect(screen, (255, 0, 0), tile)
-        p
-
 
         pygame.display.update()
         clock.tick(60)

@@ -95,7 +95,7 @@ class LevelEditor(Scene):
         # Scrolling
         self.panLevel( self.mouse_displacement )
 
-        # Updating the map.
+        # Updating the map
         value, indexes = self.level.getValue( *self.toBackground(self.mouse_x, self.mouse_y) )
 
         if indexes:
