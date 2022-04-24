@@ -1,12 +1,13 @@
-import pygame, pymunk, math
+import pygame, math
 from pygame.locals import *
 from pygame.math import *
 from classes.basics import BasicSprite
 
 
 class Player(BasicSprite):
+
     def __init__(self):
-        image = pygame.image.load('player.png')
+        image = pygame.image.load('./images/sprites/player/player.png')
         size = image.get_size()
         offset = (size[0]/2, size[1]/2)
         super().__init__(image, offset)

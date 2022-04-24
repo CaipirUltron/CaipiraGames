@@ -66,15 +66,13 @@ class TileMap(BasicGroup):
     def __init__(self, camera, filename):
         super().__init__(camera)
 
-        default_num_floors = 10
-        default_num_sides = 100
-        default_map = np.zeros([default_num_floors,default_num_sides])
+        # Default map config
         self.map_config = ...
         {
             "internal_radius": 300,
             "tile_height": 16,
             "angular_width": 360,
-            "tilegrid": default_map.tolist()
+            "tilegrid": np.zeros([10,100]).tolist()
         }
 
         self.load_level(filename)
@@ -99,7 +97,6 @@ class TileMap(BasicGroup):
             7: pygame.Color("BROWN")
         }
         self.num_materials = len(self.materials)
-
         self.load_sprites()
 
     def load_sprites(self):
@@ -108,15 +105,18 @@ class TileMap(BasicGroup):
         '''
         for i in range(self.num_floors):
             for j in range(self.num_sides):
-                if self.tilegrid[i,j] > 1:
+                if self.tilegrid[i,j] >= 1:
                     color = self.materials[self.tilegrid[i,j]]
                     self.add_tile((i,j), color)
 
     def add_tile( self, indexes, color ):
+        '''
+        Adds a tile of specific color to location specified by indexes.
+        '''
         radius = self.internal_radius + self.tile_height*indexes[0]
         angle = self.phi*indexes[1]+self.phi/2
         tile = Tile( radius, self.tile_height, self.phi, angle, color )
-        self.add( tile )
+        self.add(tile)
 
     def get_tiles_at(self, mouse_x, mouse_y):
         '''
@@ -142,6 +142,7 @@ class TileMap(BasicGroup):
         If the position is outside of the grid, returns None.
         '''
         radius, angle = to_polar(x, y)
+        
         if ( radius >= self.internal_radius and radius <= self.external_radius ) and ( angle <= self.angular_width ):
             radii = np.array([ self.tile_height*(i+1) for i in range(self.num_floors) ]) + self.internal_radius
             angles = np.array([ self.phi*(i+1) for i in range(self.num_sides) ])

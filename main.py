@@ -1,19 +1,25 @@
-from classes import Game
+'''
+Main game code. 
+Creates GM (Game Manager object) to control the game.
+Creates game scenes and executes the runningLoop() of the active scene.
+'''
+
+import sys
+from classes import GameManager
 from classes.scenes.menus import MainMenu
 from classes.scenes.ingame.level import Level
 
-# Game settings
-game_manager = Game()
+if not 'game_manager' in locals():
+    GM = GameManager()
 
-# Scenes
-main_menu = MainMenu(game_manager, "MainMenu")
-main_game = Level(game_manager, "GameScene")
+main_menu = MainMenu(GM, "MainMenu")
+main_game = Level(GM, "GameScene")
 
-game_manager.addScene(main_menu)
-game_manager.addScene(main_game)
-
-game_manager.setActiveScene("GameScene")
+GM.setActiveScene("GameScene")
 
 if __name__ == '__main__':
     while True:
-        game_manager.active_scene.runningLoop()
+        if GM.active_scene:
+            GM.active_scene.runningLoop()
+        else:
+            raise Exception("Game has no active scene!")

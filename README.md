@@ -1,5 +1,5 @@
 # CaipiraGames
-My first big game project, with pygame and pymunk. 
+My first game project, with pygame and pymunk. 
 
 **Installation instructions:**
 
@@ -15,11 +15,10 @@ $ *python3 main.py*
 Project is structured in the following way:
 
     ./classes
-
+    
     ./images
-
+    
     .main.py
-
 
 **./classes/game.py:** Game() class. Contains high-level parameters and configurations for the game, such as max. running FPS, screen resolution, etc.
 Initializes pygame and the main game screen. Contains methods for adding/removing/reseting/editing scenes, as well as transitioning between different scenes.

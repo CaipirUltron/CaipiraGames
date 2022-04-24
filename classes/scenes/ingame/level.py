@@ -1,5 +1,6 @@
 import pygame, sys
 from pygame.locals import *
+import pymunk
 
 from classes.scenes import Scene
 from classes.basics import Tile, TileMap, Background, to_polar
@@ -107,6 +108,7 @@ class Level(Scene):
         x, y = self.camera.screen2world( (self.mouse_x, self.mouse_y) )
         self.value_at, self.indexes_at = self.map.get_value_at( x, y )
 
+        print("World coordinates = ", x, y )
         print("Material = " + str(self.value_at))
         print("Indexes = " + str(self.indexes_at))
 

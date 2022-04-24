@@ -7,8 +7,12 @@ class Scene(ABC):
     Used as a parent class for game menus, screens and for the game itself.
     '''
     def __init__(self, game, name):
+
+        # Add reference to the GM
         self.game = game
-        self.name = name
+        self.id = name
+        self.game.addScene(self)
+
         self.running = False
         self.update_all = True
         self.dirty_rects = []
@@ -16,10 +20,6 @@ class Scene(ABC):
         self.use_physics = True
         if self.use_physics:
             self.space = pymunk.Space()
-
-    def changeScene(self, scene_name):
-        self.game.setActiveScene(scene_name)
-        self.running = False
         
     @abstractmethod
     def getInput(self):

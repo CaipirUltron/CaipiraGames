@@ -1,7 +1,5 @@
-import pygame
+import pygame, math
 from pygame.locals import *
-import math
-
 from classes.scenes import Scene
 
 default_text_color = pygame.Color("WHITE")
@@ -69,11 +67,11 @@ class MainMenu(Scene):
                 self.buttons[key].setFontSize(20)
                 if self.CLICKING:
                     if key == "Start Game":
-                        self.changeScene("GameScene")
+                        self.game.setActiveScene("GameScene")
                     elif key == "Options":
-                        self.changeScene("GameScene")
+                        self.game.setActiveScene("GameScene")
                     elif key == "Credits":
-                        self.changeScene("GameScene")
+                        self.game.setActiveScene("GameScene")
             else:
                 self.buttons[key].setFontSize(12)
 
