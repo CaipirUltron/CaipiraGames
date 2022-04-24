@@ -4,18 +4,23 @@ Creates GM (Game Manager object) to control the game.
 Creates game scenes and executes the runningLoop() of the active scene.
 '''
 
-import sys
 from classes import GameManager
 from classes.scenes.menus import MainMenu
 from classes.scenes.ingame.level import Level
+from classes.transitions import Fade, Transition
 
 if not 'game_manager' in locals():
     GM = GameManager()
 
-main_menu = MainMenu(GM, "MainMenu")
-main_game = Level(GM, "GameScene")
+MainMenu(GM, "MainMenu")
+Level(GM, "GameScene")
 
-GM.setActiveScene("GameScene")
+Transition(GM, 'Empty')
+Fade(GM, 'FadeOut', type='out', period = 1)
+Fade(GM, 'FadeIn', type='in', period = 1)
+Fade(GM, 'SmoothFade', type='smooth', period = 1)
+
+GM.setActiveScene("MainMenu")
 
 if __name__ == '__main__':
     while True:

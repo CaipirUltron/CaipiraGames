@@ -1,6 +1,5 @@
-import pygame, sys
+import pygame, pymunk, sys
 from pygame.locals import *
-import pymunk
 
 from classes.scenes import Scene
 from classes.basics import Tile, TileMap, Background, to_polar
@@ -111,6 +110,9 @@ class Level(Scene):
         print("World coordinates = ", x, y )
         print("Material = " + str(self.value_at))
         print("Indexes = " + str(self.indexes_at))
+
+        if self.indexes_at == (0,0):
+            self.game.transformScene('MainMenu', 'SmoothFade')
 
         # Update map matrix 
         if self.indexes_at:

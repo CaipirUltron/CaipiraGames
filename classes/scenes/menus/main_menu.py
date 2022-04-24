@@ -1,6 +1,7 @@
 import pygame, math
 from pygame.locals import *
 from classes.scenes import Scene
+from itertools import cycle
 
 default_text_color = pygame.Color("WHITE")
 default_font_name = pygame.font.get_default_font()
@@ -17,7 +18,8 @@ class MainMenu(Scene):
         self.buttons = {
             "Start Game": Button(text="Start Game", x=self.center_x, y=self.center_y + 30),
             "Options":    Button(text="Options", x=self.center_x, y=self.center_y + 50),
-            "Credits":    Button(text="Credits", x=self.center_x, y=self.center_y + 70)
+            "Credits":    Button(text="Credits", x=self.center_x, y=self.center_y + 70),
+            "Exit":    Button(text="Exit", x=self.center_x, y=self.center_y + 90),
         }
         self.mouse_x, self.mouse_y = 0.0, 0.0
 
@@ -31,9 +33,13 @@ class MainMenu(Scene):
         self.spiral = Spiral(color=pygame.Color("WHITE"), size=self.game.height/2)
 
         self.reset_keys()
+        self.init_state()
 
     def reset_keys(self):
         self.UP_KEY, self.DOWN_KEY, self.START_KEY, self.BACK_KEY, self.CLICKING = False, False, False, False, False
+
+    def init_state(self):
+        self.ON_EXIT = False
 
     def getInput(self):
         self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
@@ -63,15 +69,18 @@ class MainMenu(Scene):
         self.cursor.y = self.mouse_y
 
         for key in self.buttons:
+            self.buttons[key].pressed = False
             if self.buttons[key].rect.collidepoint(self.mouse_x, self.mouse_y):
                 self.buttons[key].setFontSize(20)
                 if self.CLICKING:
+                    self.buttons[key].pressed = True
+                    self.ON_EXIT = True
                     if key == "Start Game":
-                        self.game.setActiveScene("GameScene")
-                    elif key == "Options":
-                        self.game.setActiveScene("GameScene")
-                    elif key == "Credits":
-                        self.game.setActiveScene("GameScene")
+                        self.game.transformScene('GameScene', 'SmoothFade')
+                        pass
+                    elif key == "Exit":
+                        pygame.quit()
+                        exit()
             else:
                 self.buttons[key].setFontSize(12)
 
@@ -86,11 +95,8 @@ class MainMenu(Scene):
         for key in self.buttons:
             self.buttons[key].draw(self.game.screen)
 
-        # Draws cursor
-        self.cursor.draw(self.game.screen)
-
-        # Draws spirals
-        self.spiral.drawDots(self.game.screen, self.game.center_x, self.game.center_y)
+        self.cursor.draw(self.game.screen)                                                     # draw cursor
+        self.spiral.drawDots(self.game.screen, self.game.center_x, self.game.center_y)         # draw spirals
 
 class Cursor():
     def __init__(self, cursor_text):
