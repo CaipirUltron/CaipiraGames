@@ -1,6 +1,6 @@
 import pygame, math
-from pygame.locals import *
 from pygame.math import *
+
 
 def follow(camera):
     hor_offset = 0
@@ -45,7 +45,7 @@ class Camera():
         # Calculate the coordinates of the original topleft point in the rotated image.
         width, height = sprite.image.get_size()
         s, c = math.sin(math.radians(orientation_wrt_cam)), math.cos(math.radians(orientation_wrt_cam)) 
-        original_topleft = pygame.math.Vector2( max([0, -s*height, -c*width, - s*height - c*width]), max([0, s*width, -c*height, s*width - c*height]) )
+        original_topleft = Vector2( max([0, -s*height, -c*width, - s*height - c*width]), max([0, s*width, -c*height, s*width - c*height]) )
 
         # Convert the offset point to coordinates on the new rotated image
         pivot_offset = sprite.offset.rotate(-orientation_wrt_cam) + original_topleft

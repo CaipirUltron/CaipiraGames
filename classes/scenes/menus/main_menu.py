@@ -1,10 +1,10 @@
 import pygame, math
 from pygame.locals import *
 from classes.scenes import Scene
-from itertools import cycle
 
 default_text_color = pygame.Color("WHITE")
 default_font_name = pygame.font.get_default_font()
+
 
 class MainMenu(Scene):
     def __init__(self, game, name):
@@ -76,7 +76,7 @@ class MainMenu(Scene):
                     self.buttons[key].pressed = True
                     self.ON_EXIT = True
                     if key == "Start Game":
-                        self.game.transformScene('GameScene', 'SmoothFade')
+                        self.game.transformScene('GameScene', 'Smooth')
                         pass
                     elif key == "Exit":
                         pygame.quit()
@@ -98,9 +98,6 @@ class MainMenu(Scene):
         self.cursor.draw(self.game.screen)                                                     # draw cursor
         self.spiral.drawDots(self.game.screen, self.game.center_x, self.game.center_y)         # draw spirals
 
-class Cursor():
-    def __init__(self, cursor_text):
-        self.text = cursor_text
 
 class Button():
     def __init__(self, text='', text_color=default_text_color, x=0.0, y=0.0, font_name=None, font_size=12):
@@ -130,6 +127,7 @@ class Button():
         self.rect.center = (self.x,self.y)
         screen.blit(self.text_surf, self.rect)
 
+
 class Dot():
     def __init__(self, x, y, addAngle=5, increase=0):
         self.x, self.y = x, y
@@ -143,6 +141,7 @@ class Dot():
         self.x=center_x+math.cos(math.radians(self.angle))*self.dist
         self.y=center_y+math.sin(math.radians(self.angle))*self.dist
         self.dist+=self.increase
+
 
 class Spiral():
     def __init__(self, numberDots=500, thickness=1, size=300, color=pygame.Color("BLACK")):
@@ -165,3 +164,8 @@ class Spiral():
             self.draw(number, screen)
             dot.move(center_x, center_y)
             number += 1
+
+
+# class Cursor():
+#     def __init__(self, cursor_text):
+#         self.text = cursor_text

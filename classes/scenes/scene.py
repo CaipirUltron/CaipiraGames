@@ -1,5 +1,6 @@
 import pygame, pymunk
-from pygame.locals import *
+# from pygame.locals import *
+
 from abc import ABC, abstractmethod
 
 class Scene(ABC):
@@ -19,9 +20,8 @@ class Scene(ABC):
         self.update_all = True
         self.dirty_rects = []
 
-        self.use_physics = True
-        if self.use_physics:
-            self.space = pymunk.Space()
+        self.use_physics = False
+        self.space = pymunk.Space()
         
     @abstractmethod
     def getInput(self):
@@ -49,13 +49,13 @@ class Scene(ABC):
         '''
         Executed only once, upon entering the scene.
         '''
-        pass
+        print("Entering scene " + str(self.id))
 
     def onExit(self):
         '''
         Executed only once, upon exiting the scene.
         '''
-        pass
+        print("Exiting scene " + str(self.id))
 
     def runningLoop(self):
         '''
@@ -68,10 +68,6 @@ class Scene(ABC):
 
             # Main execution occurs here -> gets player inputs, updates physics (if used) and game internal logic and draws current frame
             self.getInput()
-            if self.use_physics:
-                if not hasattr(self,'space'):
-                    self.space = pymunk.Space()
-                self.space.step(1/self.game.fps)
             self.updateLogic()
             self.updateDisplay()
 
@@ -88,5 +84,10 @@ class Scene(ABC):
                 pygame.display.update()
             else:
                 pygame.display.update(self.dirty_rects)
+                
+            if self.use_physics:
+                if not hasattr(self,'space'):
+                    self.space = pymunk.Space()
+                self.space.step(1/self.game.fps)
 
             self.game.deltaTime = self.game.clock.tick(self.game.fps)       # computes time between frames

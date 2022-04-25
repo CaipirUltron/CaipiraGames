@@ -1,6 +1,10 @@
 import pygame, math
 from pygame.locals import *
 from pygame.math import *
+
+import pymunk
+import pymunk.pygame_util
+
 from classes.basics import BasicSprite
 
 

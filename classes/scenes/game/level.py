@@ -1,10 +1,15 @@
-import pygame, pymunk, sys
+import sys
+
+import pygame
 from pygame.locals import *
+
+import pymunk, pymunk.pygame_util
 
 from classes.scenes import Scene
 from classes.basics import Tile, TileMap, Background, to_polar
 from classes.cameras import Camera, follow
 from classes.characters.player import Player
+
 
 class Level(Scene):
     '''
@@ -46,42 +51,60 @@ class Level(Scene):
         background = Background()
         self.map.add(background)
 
+        # Physics stuff
+        self.use_physics = True
+        self.space.gravity = (0, 981)
+        self.draw_options = pymunk.pygame_util.DrawOptions(self.game.screen)
+
+        radius = 30
+        mass = 1
+        body = pymunk.Body()
+        body.position = (self.game.center_x, self.game.center_y)
+        shape = pymunk.Circle(body, radius)
+        shape.mass = mass
+        shape.color = Color("RED")
+
+        self.lower_ground = pymunk.Body(body_type=pymunk.Body.STATIC)
+        self.lower_ground.position = (0,0)
+
+        self.space.add(body, shape)
+
     def getInput(self):
 
         self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == QUIT:
                 self.running = False
                 self.map.save_level(self.filename)
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
+            if event.type == KEYDOWN:
+                if event.key == K_LEFT:
                     self.buttons["left"] = True
-                if event.key == pygame.K_RIGHT:
+                if event.key == K_RIGHT:
                     self.buttons["right"] = True
-                if event.key == pygame.K_UP:
+                if event.key == K_UP:
                     self.buttons["up"] =True
-                if event.key == pygame.K_DOWN:
+                if event.key == K_DOWN:
                     self.buttons["down"] = True
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_LEFT:
+            if event.type == KEYUP:
+                if event.key == K_LEFT:
                     self.buttons["left"] = False
-                if event.key == pygame.K_RIGHT:
+                if event.key == K_RIGHT:
                     self.buttons["right"] = False
-                if event.key == pygame.K_UP:
+                if event.key == K_UP:
                     self.buttons["up"] = False
-                if event.key == pygame.K_DOWN:
+                if event.key == K_DOWN:
                     self.buttons["down"] = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:
                     self.buttons["mouse_left"] = True
                 if event.button == 2:
                     self.buttons["mouse_scroll"] = True
                 if event.button == 3:
                     self.buttons["mouse_right"] = True
-            if event.type == pygame.MOUSEBUTTONUP:
+            if event.type == MOUSEBUTTONUP:
                 if event.button == 1:
                     self.buttons["mouse_left"] = False
                 if event.button == 2:
@@ -112,9 +135,9 @@ class Level(Scene):
         print("Indexes = " + str(self.indexes_at))
 
         if self.indexes_at == (0,0):
-            self.game.transformScene('MainMenu', 'SmoothFade')
+            self.game.transformScene('MainMenu', 'Smooth')
 
-        # Update map matrix 
+        # Update map matrix
         if self.indexes_at:
             if self.buttons["mouse_left"]:
                 self.map.set_value_at(self.curr_material, self.indexes_at)
@@ -147,3 +170,5 @@ class Level(Scene):
         # Draw menu
         for material in self.map.materials:
             pygame.draw.circle(self.game.screen, self.map.materials[material], ( 2*self.button_radius , int(material)*self.button_separation ), self.button_radius )
+
+        self.space.debug_draw(self.draw_options)

@@ -1,1 +1,1 @@
-from classes.game import *
+from classes.game_manager import *

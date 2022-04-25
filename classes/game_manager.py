@@ -7,6 +7,7 @@ WINXP_RESOLUTION = (800, 600)
 HD1080_SMALL_RESOLUTION = (480, 270)
 ATARI_RESOLUTION = (192, 160)
 
+
 class GameManager():
     '''
     Main game class, encapsulating every game scene (menus, transitions, loading screens, the game itself, etc).
@@ -22,12 +23,11 @@ class GameManager():
         self.width = self.screen.get_width()
         self.height = self.screen.get_height()
 
-    # ------------------------------ MARKED FOR REMOVAL ----------------------------------------------
         self.center_x = self.width/2
         self.center_y = self.height/2
-    # ------------------------------ MARKED FOR REMOVAL ----------------------------------------------
 
         self.fps = 60.0
+        self.fixed_deltaTime = 1/self.fps
         self.clock = pygame.time.Clock()
         self.deltaTime = 0
 
@@ -85,8 +85,9 @@ class GameManager():
         '''
         if transition_id in self.transitions.keys():
             self.active_transition = self.transitions[transition_id]
-            self.active_transition.running = True
-            self.active_transition.onEnter()
+            if not self.active_transition.running:
+                self.active_transition.running = True
+                self.active_transition.onEnter()
         else:
             raise Exception("An error occurred when starting the transition.\nTransition not found.")
 
