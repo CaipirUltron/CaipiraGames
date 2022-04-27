@@ -6,18 +6,18 @@ Creates game scenes and executes the runningLoop() of the active scene.
 import pygame
 from classes import GameManager
 from classes.scenes.menus import MainMenu
-from classes.scenes.game import Level
+from classes.scenes.game import GameLevel
 from classes.transitions import Fade
 
 if not 'game_manager' in locals():
     GM = GameManager()
 
 MainMenu(GM, "MainMenu")
-Level(GM, "GameScene")
+GameLevel(GM, "GameScene", use_physics = True)
 
 Fade(GM, 'Smooth', type='smooth')
 
-GM.setActiveScene("MainMenu")
+GM.setActiveScene("GameScene")
 
 if __name__ == '__main__':
     while True:

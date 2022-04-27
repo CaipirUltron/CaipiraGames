@@ -1,8 +1,12 @@
 import numpy as np
 import json, math, pygame
+
 from pygame.locals import *
 from pygame.math import *
-from classes.basics import BasicSprite, BasicGroup, Arc
+
+import pymunk
+
+from classes.common import BasicSprite, BasicGroup, Arc
 
 
 def to_polar(x, y):
@@ -45,6 +49,31 @@ class Tile(BasicSprite):
 
         # Draws sprite
         self.arc.draw_arc(image, self.color, fill=True)
+        
+        # Physics
+        self.body = pymunk.Body( body_type=pymunk.Body.STATIC )
+
+        topleft_x = self.arc.radius*math.sin( math.radians(self.orientation-self.arc.angular_width/2) )
+        topleft_y = self.arc.radius*math.cos( math.radians(self.orientation-self.arc.angular_width/2) )
+
+        topright_x = self.arc.radius*math.sin( math.radians(self.orientation+self.arc.angular_width/2) )
+        topright_y = self.arc.radius*math.cos( math.radians(self.orientation+self.arc.angular_width/2) )
+
+        bottonleft_x = (self.arc.radius+self.arc.height)*math.sin( math.radians(self.orientation-self.arc.angular_width/2) )
+        bottonleft_y = (self.arc.radius+self.arc.height)*math.cos( math.radians(self.orientation-self.arc.angular_width/2) )
+
+        bottonright_x = (self.arc.radius+self.arc.height)*math.sin( math.radians(self.orientation+self.arc.angular_width/2) )
+        bottonright_y = (self.arc.radius+self.arc.height)*math.cos( math.radians(self.orientation+self.arc.angular_width/2) )
+
+        self.topleft = ( topleft_x, topleft_y )
+        self.topright = ( topright_x, topright_y )
+        self.bottonleft = ( bottonleft_x, bottonleft_y )
+        self.bottonright = ( bottonright_x, bottonright_y )
+
+        self.shape = pymunk.Poly(self.body, [ self.topleft, self.topright, self.bottonright, self.bottonleft ])
+        self.shape.color = Color("RED")
+
+        print(self.body.position)
 
     def collidepoint(self, world_x, world_y):
         '''
@@ -58,13 +87,19 @@ class Tile(BasicSprite):
         else:
             return False
 
+    # def update(self, *args, **kwargs):
+    #     super().update(*args, **kwargs)
+
+    #     self.position = Vector2(self.body.position)
+
 
 class TileMap(BasicGroup):
     '''
     Tile map functionality.
     '''
-    def __init__(self, camera, filename):
-        super().__init__(camera)
+    def __init__(self, filename, space, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        super().attach_space(space)
 
         # Default map config
         self.map_config = ...
@@ -99,6 +134,23 @@ class TileMap(BasicGroup):
         self.num_materials = len(self.materials)
         self.load_sprites()
 
+        self.hat_1 = np.array([[0, -1],[1, 0]])
+        self.angular_accel = 0
+        self.angular_vel = 1
+
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+
+        def ship_gravity(body, gravity, damping, dt):
+            gravity = (- (self.angular_accel + 0.02*self.angular_vel) * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
+            # gravity = (- self.angular_accel * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
+            pymunk.Body.update_velocity(body, [ gravity[0], gravity[1] ], damping, dt)
+
+        for sprite in self.sprites():
+            pos = sprite.position
+            if hasattr(sprite, 'body'):
+                sprite.body.velocity_func = ship_gravity
+
     def load_sprites(self):
         '''
         Loads the sprites in the screen.
@@ -127,7 +179,7 @@ class TileMap(BasicGroup):
 
         colliding_tiles = []
         for sprite in sprite_list:
-            if type(sprite) == Tile:
+            if isinstance(sprite, Tile):
                 if sprite.collidepoint( world_x, world_y ):
                     colliding_tiles.append(sprite)
         return colliding_tiles
@@ -169,5 +221,5 @@ class TileMap(BasicGroup):
 
     def save_level(self, filename):
         with open(filename+str(".json"), "w") as file:
-            json.dump(self.map_config, file)
+            json.dump(self.map_config, file, indent=4)
         print("Tile map saved.")

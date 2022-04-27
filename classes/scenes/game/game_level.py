@@ -3,20 +3,20 @@ import sys
 import pygame
 from pygame.locals import *
 
-import pymunk, pymunk.pygame_util
+# import pymunk, pymunk.pygame_util
 
 from classes.scenes import Scene
-from classes.basics import Tile, TileMap, Background, to_polar
+from classes.common import TileMap, Background
 from classes.cameras import Camera, follow
 from classes.characters.player import Player
+from classes.objects import Ball
 
-
-class Level(Scene):
+class GameLevel(Scene):
     '''
     Class for an example game level.
     '''
-    def __init__(self, game, name):
-        super().__init__(game, name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.curr_material = 1
         self.buttons = {
@@ -37,37 +37,23 @@ class Level(Scene):
         self.value_at = 0
         self.indexes_at = (0,0)
 
-        # Add player
+        # Creates some objects
         self.player = Player()
+        self.bg = Background()
+        self.ball = Ball()
 
         # Add camera
         self.camera = Camera(self.player, follow, (self.game.width, self.game.height))
-
+        
         # Initialize level
         self.filename = 'map1'
-        self.map = TileMap( self.camera, self.filename )
+        self.map = TileMap( self.filename, self.space, self.camera )
+        # self.draw_options = pymunk.pygame_util.DrawOptions(self.game.screen)
 
-        # Add background
-        background = Background()
-        self.map.add(background)
-
-        # Physics stuff
-        self.use_physics = True
-        self.space.gravity = (0, 981)
-        self.draw_options = pymunk.pygame_util.DrawOptions(self.game.screen)
-
-        radius = 30
-        mass = 1
-        body = pymunk.Body()
-        body.position = (self.game.center_x, self.game.center_y)
-        shape = pymunk.Circle(body, radius)
-        shape.mass = mass
-        shape.color = Color("RED")
-
-        self.lower_ground = pymunk.Body(body_type=pymunk.Body.STATIC)
-        self.lower_ground.position = (0,0)
-
-        self.space.add(body, shape)
+        # Adds more objects to the map
+        self.map.add(self.player)
+        self.map.add(self.bg)
+        self.map.add(self.ball)
 
     def getInput(self):
 
@@ -134,8 +120,8 @@ class Level(Scene):
         print("Material = " + str(self.value_at))
         print("Indexes = " + str(self.indexes_at))
 
-        if self.indexes_at == (0,0):
-            self.game.transformScene('MainMenu', 'Smooth')
+        # if self.indexes_at == (0,0):
+        #     self.game.transformScene('MainMenu', 'Smooth')
 
         # Update map matrix
         if self.indexes_at:
@@ -156,9 +142,11 @@ class Level(Scene):
             if touching_tiles:
                 for tile in touching_tiles:
                     if self.buttons["mouse_left"]:
+                        self.space.remove(tile.shape, tile.body)
                         tile.kill()
                         self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
                     if self.buttons["mouse_right"]:
+                        self.space.remove(tile.shape, tile.body)
                         tile.kill()
             else:
                 if self.buttons["mouse_left"]:
@@ -171,4 +159,4 @@ class Level(Scene):
         for material in self.map.materials:
             pygame.draw.circle(self.game.screen, self.map.materials[material], ( 2*self.button_radius , int(material)*self.button_separation ), self.button_radius )
 
-        self.space.debug_draw(self.draw_options)
+        # self.space.debug_draw(self.draw_options)

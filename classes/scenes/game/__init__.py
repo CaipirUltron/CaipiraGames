@@ -1,1 +1,1 @@
-from classes.scenes.game.level import *
+from classes.scenes.game.game_level import *

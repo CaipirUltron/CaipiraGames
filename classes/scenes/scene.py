@@ -8,7 +8,7 @@ class Scene(ABC):
     Basic class for a game scene. Always contains at least an eventHandler and a runningLoop method.
     Used as a parent class for game menus, screens and for the game itself.
     '''
-    def __init__(self, game, name):
+    def __init__(self, game, name, use_physics = False):
 
         # Add reference to the GM
         self.game = game
@@ -20,9 +20,12 @@ class Scene(ABC):
         self.update_all = True
         self.dirty_rects = []
 
-        self.use_physics = False
-        self.space = pymunk.Space()
-        
+        self.use_physics = use_physics
+        if self.use_physics:
+            self.space = pymunk.Space()
+        else:
+            self.space = None
+
     @abstractmethod
     def getInput(self):
         '''
@@ -86,8 +89,10 @@ class Scene(ABC):
                 pygame.display.update(self.dirty_rects)
                 
             if self.use_physics:
-                if not hasattr(self,'space'):
+                if not self.space:
                     self.space = pymunk.Space()
                 self.space.step(1/self.game.fps)
+            else:
+                self.space = None
 
             self.game.deltaTime = self.game.clock.tick(self.game.fps)       # computes time between frames

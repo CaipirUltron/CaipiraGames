@@ -2,7 +2,6 @@ import math, pygame, pymunk
 from pygame.locals import *
 from pygame.math import *
 
-
 class Arc():
     '''
     Class for solid arcs. position is the topleft position of the smallest Rect containing the Arc.
@@ -55,25 +54,50 @@ class BasicSprite(pygame.sprite.Sprite):
     (iii) Vector2 position    (world coordinates)
     (iv)  float orientation   (world coordinates)
     '''
-    def __init__(self, image, offset, position=pygame.math.Vector2(0,0), orientation=0, *groups):
+    def __init__(self, image, offset=(0,0), position=(0,0), orientation=0, *groups):
         super().__init__(*groups)
         self.image = image
         self.rect = self.image.get_rect()
 
-        self.offset = pygame.math.Vector2(offset)
-        self.position = position
+        self.offset = Vector2(offset)
+        self.position = Vector2(position)
         self.orientation = orientation
 
 
 class BasicGroup(pygame.sprite.LayeredUpdates):
     '''
-    Adds camera functionality to pygame.sprite.Group. 
+    Adds camera functionality to pygame.sprite.Group.
+    Adds physics support to the sprites.
     '''
     def __init__(self, camera):
+        self.space = None                       # reference to the space that will be used to compute physics
         super().__init__()
         self.camera = camera
-        if self.camera.target:
-            self.add( self.camera.target )
+
+    def add(self, *sprites):
+        '''
+        Add sprite body and shape to space.
+        '''
+        super().add(*sprites)
+        if self.space:
+            for sprite in sprites:
+                if hasattr(sprite, 'body') and hasattr(sprite, 'shape'):
+                    self.space.add(sprite.body, sprite.shape)
+
+    def remove(self, *sprites):
+        '''
+        Remove sprite body and shape to space.
+        '''
+        super().remove(*sprites)
+        for sprite in sprites:
+            if hasattr(sprite, 'body') and hasattr(sprite, 'shape'):
+                self.space.remove(sprite.body, sprite.shape)
+
+    def attach_space(self, space):
+        '''
+        Hooks a space object to the group.
+        '''
+        self.space = space
 
     def update(self, *args, **kwargs):
         '''
@@ -84,7 +108,9 @@ class BasicGroup(pygame.sprite.LayeredUpdates):
 
     def draw(self, surface):
         '''
-        Overrides the draw method of LayeredUpdates to take the camera state into account.
+        Overrides the draw method of LayeredUpdates() to take the camera state into account.
+        The change here from LayeredUpdates() is the "transf_img, transf_rect = self.camera.transform(sprite)" line,
+        which transforms the image and its rect according to the camera state before blitting.
         '''
         dirty = self.lostsprites
         self.lostsprites = []
@@ -103,26 +129,3 @@ class BasicGroup(pygame.sprite.LayeredUpdates):
             self.spritedict[sprite] = new_rect
             sprite.rect = new_rect
         return dirty
-
-
-class Ball(BasicSprite):
-    def __init__(self, space, radius, *groups):
-
-        self.space = space
-
-        image = pygame.Surface((2*radius,2*radius), pygame.SRCALPHA, 32)
-        offset = (radius,radius)
-        pygame.draw.circle( image, Color("RED"), offset, radius )
-        super().__init__( image, offset, *groups )
-
-        self.body = pymunk.Body(mass = 1.0, moment = 1000)
-        self.shape = pymunk.Circle(self.body, radius)
-        self.space.add( self.body, self.shape )
-
-    def update(self):
-        self.position = self.convert( self.body.position )
-
-    def convert(self, position):
-        # width, height = screen_size[0], screen_size[1]
-        transf_coord = ( position[0], -position[1] )
-        return transf_coord
