@@ -11,6 +11,7 @@ def follow(camera):
     camera.position = camera.target.position + Vector2(hor_offset, ver_offset).rotate(-camera.target.orientation)
     camera.orientation = camera.target.orientation
 
+
 def fixed(camera):
     '''
     A fixed camera with some vertical and horizontal offset. 
@@ -18,6 +19,7 @@ def fixed(camera):
     hor_offset = 0
     ver_offset = 0
     camera.position = Vector2(hor_offset, ver_offset)
+
 
 class Camera():
     '''

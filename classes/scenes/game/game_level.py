@@ -3,10 +3,11 @@ import sys
 import pygame
 from pygame.locals import *
 
-# import pymunk, pymunk.pygame_util
+import pymunk, pymunk.pygame_util
 
 from classes.scenes import Scene
-from classes.common import TileMap, Background
+from classes.common import TileMap
+from classes.objects import Background
 from classes.cameras import Camera, follow
 from classes.characters.player import Player
 from classes.objects import Ball
@@ -47,8 +48,8 @@ class GameLevel(Scene):
         
         # Initialize level
         self.filename = 'map1'
-        self.map = TileMap( self.filename, self.space, self.camera )
-        # self.draw_options = pymunk.pygame_util.DrawOptions(self.game.screen)
+        self.map = TileMap( self.filename, self.camera, self.space )
+        self.draw_options = pymunk.pygame_util.DrawOptions(self.game.screen)
 
         # Adds more objects to the map
         self.map.add(self.player)
@@ -120,8 +121,8 @@ class GameLevel(Scene):
         print("Material = " + str(self.value_at))
         print("Indexes = " + str(self.indexes_at))
 
-        # if self.indexes_at == (0,0):
-        #     self.game.transformScene('MainMenu', 'Smooth')
+        if self.indexes_at == (0,0):
+            self.game.transformScene('MainMenu', 'Smooth')
 
         # Update map matrix
         if self.indexes_at:

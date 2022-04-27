@@ -6,100 +6,17 @@ from pygame.math import *
 
 import pymunk
 
-from classes.common import BasicSprite, BasicGroup, Arc
+from classes.common import GameObjectGroup, Arc, to_polar
+from classes.objects import Tile
 
 
-def to_polar(x, y):
-    '''
-    Converts cartesian coords (x,y) to polar coords (radius, angle).
-    '''
-    radius = math.sqrt( x**2 + y**2 )
-    angle = math.degrees(math.atan2( x,y ))
-    if angle < 0:
-        angle += 360
-    return radius, angle
-
-
-class Background(BasicSprite):
-    '''
-    Tile map background sprite.
-    '''
-    def __init__(self, *groups):
-        self._layer = -1
-        image = pygame.transform.scale(pygame.image.load("images/sprites/bg/axis.png"), (1200,1200) ).convert_alpha()
-        img_size = image.get_size()
-        super().__init__(image, offset=(img_size[0]/2, img_size[1]/2), *groups)
-
-
-class Tile(BasicSprite):
-    '''
-    Basic curved tile.
-    '''
-    def __init__(self, radius, height, angular_width, angle=0, color=pygame.Color("RED"), *groups):
-        self._layer = -1
-
-        # Tile parameters
-        self.arc = Arc( Vector2(0,0), radius, height, angular_width ) # tile arc
-        self.color = color                                            # tile color
-
-        # Initialize BasicSprite surface
-        image = pygame.Surface( ( self.arc.rect.width, self.arc.rect.height ), pygame.SRCALPHA)
-        offset = ( self.arc.rect.width/2, self.arc.distortion - self.arc.radius )
-        super().__init__(image, offset, orientation=angle, *groups)
-
-        # Draws sprite
-        self.arc.draw_arc(image, self.color, fill=True)
-        
-        # Physics
-        self.body = pymunk.Body( body_type=pymunk.Body.STATIC )
-
-        topleft_x = self.arc.radius*math.sin( math.radians(self.orientation-self.arc.angular_width/2) )
-        topleft_y = self.arc.radius*math.cos( math.radians(self.orientation-self.arc.angular_width/2) )
-
-        topright_x = self.arc.radius*math.sin( math.radians(self.orientation+self.arc.angular_width/2) )
-        topright_y = self.arc.radius*math.cos( math.radians(self.orientation+self.arc.angular_width/2) )
-
-        bottonleft_x = (self.arc.radius+self.arc.height)*math.sin( math.radians(self.orientation-self.arc.angular_width/2) )
-        bottonleft_y = (self.arc.radius+self.arc.height)*math.cos( math.radians(self.orientation-self.arc.angular_width/2) )
-
-        bottonright_x = (self.arc.radius+self.arc.height)*math.sin( math.radians(self.orientation+self.arc.angular_width/2) )
-        bottonright_y = (self.arc.radius+self.arc.height)*math.cos( math.radians(self.orientation+self.arc.angular_width/2) )
-
-        self.topleft = ( topleft_x, topleft_y )
-        self.topright = ( topright_x, topright_y )
-        self.bottonleft = ( bottonleft_x, bottonleft_y )
-        self.bottonright = ( bottonright_x, bottonright_y )
-
-        self.shape = pymunk.Poly(self.body, [ self.topleft, self.topright, self.bottonright, self.bottonleft ])
-        self.shape.color = Color("RED")
-
-        print(self.body.position)
-
-    def collidepoint(self, world_x, world_y):
-        '''
-        Checks if given world position is inside the tile.
-        '''
-        radius, angle = to_polar(world_x, world_y)
-        is_in_radius = ( radius >= self.arc.radius ) and ( radius < self.arc.radius + self.arc.height )
-        is_in_angle = ( angle >= self.orientation - self.arc.angular_width/2 ) and ( angle < self.orientation + self.arc.angular_width/2 )
-        if is_in_radius and is_in_angle:
-            return True
-        else:
-            return False
-
-    # def update(self, *args, **kwargs):
-    #     super().update(*args, **kwargs)
-
-    #     self.position = Vector2(self.body.position)
-
-
-class TileMap(BasicGroup):
+class TileMap(GameObjectGroup):
     '''
     Tile map functionality.
     '''
-    def __init__(self, filename, space, *args, **kwargs):
+    def __init__(self, filename, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        super().attach_space(space)
+        # super().attach_space(space)
 
         # Default map config
         self.map_config = ...
@@ -142,7 +59,7 @@ class TileMap(BasicGroup):
         super().update(*args, **kwargs)
 
         def ship_gravity(body, gravity, damping, dt):
-            gravity = (- (self.angular_accel + 0.02*self.angular_vel) * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
+            gravity = (- (self.angular_accel + 0.2*self.angular_vel) * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
             # gravity = (- self.angular_accel * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
             pymunk.Body.update_velocity(body, [ gravity[0], gravity[1] ], damping, dt)
 

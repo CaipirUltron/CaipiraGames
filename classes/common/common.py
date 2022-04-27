@@ -2,6 +2,18 @@ import math, pygame, pymunk
 from pygame.locals import *
 from pygame.math import *
 
+
+def to_polar(x, y):
+    '''
+    Converts cartesian coords (x,y) to polar coords (radius, angle).
+    '''
+    radius = math.sqrt( x**2 + y**2 )
+    angle = math.degrees(math.atan2( x,y ))
+    if angle < 0:
+        angle += 360
+    return radius, angle
+
+
 class Arc():
     '''
     Class for solid arcs. position is the topleft position of the smallest Rect containing the Arc.
@@ -45,7 +57,7 @@ class Arc():
         return "<x: %s, y: %s, radius:%s height:%s arc width:%s>" % (self.radius, self.height, self.angular_width)
 
 
-class BasicSprite(pygame.sprite.Sprite):
+class GameObject(pygame.sprite.Sprite):
     '''
     This class expands upon pygamne.sprite.Sprite, allowing sprite rotation around a pivot point.
     Members:
@@ -64,13 +76,13 @@ class BasicSprite(pygame.sprite.Sprite):
         self.orientation = orientation
 
 
-class BasicGroup(pygame.sprite.LayeredUpdates):
+class GameObjectGroup(pygame.sprite.LayeredUpdates):
     '''
-    Adds camera functionality to pygame.sprite.Group.
+    Adds camera functionality to pygame.sprite.Group
     Adds physics support to the sprites.
     '''
-    def __init__(self, camera):
-        self.space = None                       # reference to the space that will be used to compute physics
+    def __init__(self, camera, space):
+        self.space = space                       # reference to the space that will be used to compute physics
         super().__init__()
         self.camera = camera
 
@@ -92,12 +104,6 @@ class BasicGroup(pygame.sprite.LayeredUpdates):
         for sprite in sprites:
             if hasattr(sprite, 'body') and hasattr(sprite, 'shape'):
                 self.space.remove(sprite.body, sprite.shape)
-
-    def attach_space(self, space):
-        '''
-        Hooks a space object to the group.
-        '''
-        self.space = space
 
     def update(self, *args, **kwargs):
         '''

@@ -5,10 +5,10 @@ from pygame.math import *
 import pymunk
 import pymunk.pygame_util
 
-from classes.common import BasicSprite
+from classes.common import GameObject
 
 
-class Player(BasicSprite):
+class Player(GameObject):
 
     def __init__(self):
         image = pygame.image.load('./images/sprites/player/player.png')
@@ -24,7 +24,8 @@ class Player(BasicSprite):
 
         self.body = pymunk.Body( body_type=pymunk.Body.KINEMATIC )
         self.body.position = (self.position.x, self.position.y)
-        self.shape = pymunk.Circle(self.body, 12, (0,0))
+
+        self.shape = pymunk.Poly.create_box(self.body, (30,40))
 
     def update(self, *args, **kwargs):
         super().update(*args, **kwargs)
@@ -52,3 +53,4 @@ class Player(BasicSprite):
         self.range = self.position.length()
 
         self.body.position = (self.position.x, self.position.y)
+        self.body.angle = -math.radians(self.orientation)
