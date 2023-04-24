@@ -52,15 +52,15 @@ class TileMap(GameObjectGroup):
         self.load_sprites()
 
         self.hat_1 = np.array([[0, -1],[1, 0]])
-        self.angular_accel = 0
+        self.angular_accel = 0.1
         self.angular_vel = 1
 
     def update(self, *args, **kwargs):
         super().update(*args, **kwargs)
 
         def ship_gravity(body, gravity, damping, dt):
-            gravity = (- (self.angular_accel + 0.2*self.angular_vel) * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
-            # gravity = (- self.angular_accel * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
+            # gravity = (- (self.angular_accel + 2*self.angular_vel) * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
+            gravity = (- self.angular_accel * self.hat_1 + (self.angular_vel**2)*np.eye(2) ) @ np.array([pos[0],pos[1]])
             pymunk.Body.update_velocity(body, [ gravity[0], gravity[1] ], damping, dt)
 
         for sprite in self.sprites():

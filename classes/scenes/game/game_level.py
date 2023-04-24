@@ -41,7 +41,6 @@ class GameLevel(Scene):
         # Creates some objects
         self.player = Player()
         self.bg = Background()
-        self.ball = Ball()
 
         # Add camera
         self.camera = Camera(self.player, follow, (self.game.width, self.game.height))
@@ -54,7 +53,7 @@ class GameLevel(Scene):
         # Adds more objects to the map
         self.map.add(self.player)
         self.map.add(self.bg)
-        self.map.add(self.ball)
+        self.map.add(Ball(), Ball(), Ball(), Ball(), Ball())
 
     def getInput(self):
 
