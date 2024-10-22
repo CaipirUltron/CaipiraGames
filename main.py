@@ -15,8 +15,8 @@ mainGame = LevelEditor(myGame, "GameScene")
 myGame.addScene(mainMenu)
 myGame.addScene(mainGame)
 
-# myGame.setActiveScene("MainMenu")
-myGame.setActiveScene("GameScene")
+myGame.setActiveScene("MainMenu")
+# myGame.setActiveScene("GameScene")
 
 if __name__ == '__main__':
     while True:
