@@ -1,6 +1,7 @@
 {
     "angular_width": 360,
     "internal_radius": 600,
+    "tile_width": 32,
     "tile_height": 32,
     "tilegrid": [
         [
@@ -1043,5 +1044,7 @@
             6,
             6
         ]
-    ]
+    ],
+    "height": 16,
+    "width": 63
 }

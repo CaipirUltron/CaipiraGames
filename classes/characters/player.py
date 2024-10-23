@@ -16,11 +16,14 @@ class Player(GameObject):
         offset = (size[0]/2, size[1]/2)
         super().__init__(image, (offset))
 
-        self.position = Vector2(0,1000)
+        self.position = Vector2(0,0)
         self.orientation = 0
 
+        self.unit_left = Vector2(1,0)
+        self.unit_up = Vector2(0,1)
+
         self.speed = 600*(1/60)
-        self.range = self.position.length()
+        # self.range = self.position.length()
 
         self.body = pymunk.Body( body_type=pymunk.Body.KINEMATIC )
         self.body.position = (self.position.x, self.position.y)
@@ -35,22 +38,23 @@ class Player(GameObject):
         up = pygame.key.get_pressed()[pygame.K_UP]
         down = pygame.key.get_pressed()[pygame.K_DOWN]
 
-        unit_radial = self.position.normalize()
-        unit_left = unit_radial.rotate(90).normalize()
-
+        ''' Player motion '''
         if left or right:
             if left:
-                self.position += unit_left*self.speed
+                self.position -= self.unit_left*self.speed
             if right:
-                self.position -= unit_left*self.speed
-            self.orientation = math.degrees(math.atan2( self.position.x,self.position.y ))
-            self.position.x = self.range*math.sin( math.radians(self.orientation) )
-            self.position.y = self.range*math.cos( math.radians(self.orientation) )
+                self.position += self.unit_left*self.speed
+            self.orientation = 0.0
+            # self.orientation = math.degrees(math.atan2( self.position.x,self.position.y ))
+            # self.position.x = self.range*math.sin( math.radians(self.orientation) )
+            # self.position.y = self.range*math.cos( math.radians(self.orientation) )
         if up:
-            self.position -= unit_radial*self.speed
+            self.position += self.unit_up*self.speed
         if down:
-            self.position += unit_radial*self.speed
-        self.range = self.position.length()
+            self.position -= self.unit_up*self.speed
 
+        # self.range = self.position.length()
+
+        ''' Pymunk physics '''
         self.body.position = (self.position.x, self.position.y)
         self.body.angle = -math.radians(self.orientation)

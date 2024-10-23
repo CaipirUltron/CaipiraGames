@@ -10,11 +10,11 @@ from classes.common import TileMap
 from classes.objects import Background
 from classes.cameras import Camera, follow
 from classes.characters.player import Player
-from classes.objects import Ball
 
-class GameLevel(Scene):
+
+class LevelEditor(Scene):
     '''
-    Class for an example game level.
+    Game level editor scene.
     '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -47,13 +47,12 @@ class GameLevel(Scene):
         
         # Initialize level
         self.filename = 'map1'
-        self.map = TileMap( self.filename, self.camera, self.space )
+        self.map = TileMap.from_file( self.filename, self.camera, self.space )
         self.draw_options = pymunk.pygame_util.DrawOptions(self.game.screen)
 
         # Adds more objects to the map
         self.map.add(self.player)
-        self.map.add(self.bg)
-        self.map.add(Ball(), Ball(), Ball(), Ball(), Ball())
+        # self.map.add(self.bg)
 
     def getInput(self):
 
@@ -120,8 +119,8 @@ class GameLevel(Scene):
         print("Material = " + str(self.value_at))
         print("Indexes = " + str(self.indexes_at))
 
-        if self.indexes_at == (0,0):
-            self.game.transformScene('MainMenu', 'Smooth')
+        # if self.indexes_at == (0,0):
+        #     self.game.transformScene('MainMenu', 'Smooth')
 
         # Update map matrix
         if self.indexes_at:
@@ -136,21 +135,21 @@ class GameLevel(Scene):
         self.game.screen.fill(Color("BLACK"))
         self.map.draw(self.game.screen)
 
-        # Update tiles
-        if self.indexes_at:
-            touching_tiles = self.map.get_tiles_at(self.mouse_x, self.mouse_y)
-            if touching_tiles:
-                for tile in touching_tiles:
-                    if self.buttons["mouse_left"]:
-                        self.space.remove(tile.shape, tile.body)
-                        tile.kill()
-                        self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
-                    if self.buttons["mouse_right"]:
-                        self.space.remove(tile.shape, tile.body)
-                        tile.kill()
-            else:
-                if self.buttons["mouse_left"]:
-                    self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
+        # # Update tiles
+        # if self.indexes_at:
+        #     touching_tiles = self.map.get_tiles_at(self.mouse_x, self.mouse_y)
+        #     if touching_tiles:
+        #         for tile in touching_tiles:
+        #             if self.buttons["mouse_left"]:
+        #                 self.space.remove(tile.shape, tile.body)
+        #                 tile.kill()
+        #                 self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
+        #             if self.buttons["mouse_right"]:
+        #                 self.space.remove(tile.shape, tile.body)
+        #                 tile.kill()
+        #     else:
+        #         if self.buttons["mouse_left"]:
+        #             self.map.add_tile(self.indexes_at, self.map.materials[self.map.tilegrid[self.indexes_at]])
 
         # Draw mouse pointer
         pygame.draw.circle(self.game.screen, self.map.materials[self.curr_material], (self.mouse_x,self.mouse_y), self.ponter_size )

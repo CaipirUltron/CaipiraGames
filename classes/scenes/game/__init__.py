@@ -1,1 +1,2 @@
-from classes.scenes.game.game_level import *
+from classes.scenes.game.level_editor import *
+from classes.scenes.game.old_level_editor import *
