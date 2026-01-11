@@ -64,7 +64,18 @@ class EditorConfig:
     
     # File paths
     DEFAULT_TILESET_FOLDER: str = 'assets/tilesets/scifi'
-    DEFAULT_SAVE_FILE: str = 'map_editor.json'
+    DEFAULT_SAVE_FILE: str = 'map_editor.json'    
+    CONFIG_FILE: str = 'map_editor/.editor_config.json'
+    
+    # Autosave
+    AUTOSAVE_INTERVAL: int = 2  # Seconds between autosave checks
+    
+    # Auto-tiling
+    AUTO_TILE_ENABLED: bool = False  # Enable/disable auto-tiling by default
+    AUTO_TILE_8BIT_MODE: bool = False  # Use 8-bit (256 tiles) vs 4-bit (16 tiles)
+    
+    # Debug
+    DEBUG_VERBOSE: bool = False  # Enable/disable terminal debug messages
 
 
 @dataclass(frozen=True)
@@ -97,13 +108,11 @@ class EditorText:
     WINDOW_TITLE: str = "Tile Editor - CaipiraGames"
     
     # Button labels
-    BUTTON_LOAD_FOLDER: str = "Load Folder..."
     BUTTON_MINUS: str = "-"
     BUTTON_PLUS: str = "+"
     
     # Section headers
     HEADER_CONTROLS: str = "=== CONTROLS ==="
-    HEADER_TILESET: str = "=== TILESET ==="
     HEADER_GRID_SIZE: str = "=== GRID SIZE ==="
     HEADER_MAP_INFO: str = "=== MAP INFO ==="
     
@@ -114,10 +123,12 @@ class EditorText:
         "Right Click: Erase",
         "Scroll Wheel: Scroll",
         "Arrow Keys: Pan Map",
+        "Shift+LClick(Pal): Reg Autotile",
+        "T: Toggle Autotile",
         "",
-        "Ctrl+S: Save",
-        "Ctrl+L: Load",
-        "Ctrl+N: Clear",
+        "Ctrl+S: Save Map",
+        "Ctrl+L: Load Map",
+        "Ctrl+N: Clear Map",
         "ESC: Exit",
     )
     
@@ -134,10 +145,6 @@ class EditorText:
     
     # Tab text
     TAB_ELLIPSIS: str = "..."
-    
-    # File dialog
-    DIALOG_TITLE_FOLDER: str = "Select Tileset Folder"
-    DIALOG_INITIAL_DIR: str = "assets/tilesets"
     
     # Console messages
     MSG_MAP_SAVED: str = "Map saved!"
