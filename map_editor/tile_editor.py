@@ -6,57 +6,58 @@ from pygame.locals import *
 import numpy as np
 from tkinter import Tk, filedialog
 
+from .editor_components.configs import EditorConfig, EditorColors, EditorText
+
 
 class TileEditor:
     '''
     Simple tile map editor with tile palette and grid-based painting.
     '''
-    def __init__(self, screen_width=1280, screen_height=720, tileset_path='images/tilesets/scifi/'):
+    def __init__(self, screen_width=EditorConfig.SCREEN_WIDTH, screen_height=EditorConfig.SCREEN_HEIGHT, tileset_path=EditorConfig.DEFAULT_TILESET_FOLDER):
         pygame.init()
-        pygame.display.set_caption("Tile Editor - CaipiraGames")
+        pygame.display.set_caption(EditorText.WINDOW_TITLE)
         
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
+        self.screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
-        self.fps = 60
+        self.fps = EditorConfig.FPS
         
         # Multi-tileset support
-        self.tile_size = 16  # Each tile in the tileset is 16x16
+        self.tile_size = EditorConfig.TILE_SIZE
         self.tilesets = []  # List of tileset dictionaries
         self.current_tileset_index = 0  # Active tileset for painting
         self.tileset_folder = None
         
         # Load initial tileset if provided
         if tileset_path and os.path.exists(tileset_path):
-            folder = os.path.dirname(tileset_path)
-            self.load_tileset_folder(folder)
+            self.load_tileset_folder(tileset_path)
         else:
             # Create a default empty tileset
             self.add_empty_tileset()
         
         # UI Panel configuration (left side)
-        self.ui_panel_width = 220
-        self.ui_panel_x = 0
+        self.ui_panel_width = EditorConfig.UI_PANEL_WIDTH
+        self.ui_panel_x = EditorConfig.UI_PANEL_X
         
         # Palette configuration (right side)
-        self.palette_width = 200
+        self.palette_width = EditorConfig.PALETTE_WIDTH
         self.palette_x = screen_width - self.palette_width
-        self.palette_tile_size = 32  # Display tiles larger in palette
+        self.palette_tile_size = EditorConfig.PALETTE_TILE_SIZE
         self.palette_cols = self.palette_width // self.palette_tile_size
         self.palette_scroll = 0
-        self.tab_height = 30  # Height for tileset tabs
-        self.palette_start_y = self.tab_height  # Start drawing tiles below tabs
+        self.tab_height = EditorConfig.TAB_HEIGHT
+        self.palette_start_y = self.tab_height
         self.palette_rows_visible = (screen_height - self.tab_height) // self.palette_tile_size
         self.tab_rects = []  # Will store tab rectangles for click detection
         
         # Map configuration (center area)
-        self.map_start_x = self.ui_panel_width + 10
-        self.map_width = self.palette_x - self.map_start_x - 10
+        self.map_start_x = self.ui_panel_width + EditorConfig.MAP_SPACING
+        self.map_width = self.palette_x - self.map_start_x - EditorConfig.MAP_SPACING
         self.map_height = screen_height
-        self.map_tile_size = 32  # Display size for tiles in the map
-        self.map_cols = 100
-        self.map_rows = 50
+        self.map_tile_size = EditorConfig.MAP_TILE_SIZE
+        self.map_cols = EditorConfig.DEFAULT_MAP_COLS
+        self.map_rows = EditorConfig.DEFAULT_MAP_ROWS
         
         # Initialize empty map grid - stores (tileset_index, tile_index) pairs
         # (-1, -1) means no tile
@@ -84,24 +85,24 @@ class TileEditor:
         self.load_tileset_rect = None
         
         # UI colors
-        self.bg_color = (40, 40, 50)
-        self.ui_panel_bg = (50, 50, 60)
-        self.palette_bg = (60, 60, 70)
-        self.grid_color = (80, 80, 90)
-        self.selection_color = (255, 255, 100)
-        self.button_color = (70, 70, 80)
-        self.button_hover_color = (90, 90, 100)
-        self.text_color = (200, 200, 200)
+        self.bg_color = EditorColors.BG_COLOR
+        self.ui_panel_bg = EditorColors.UI_PANEL_BG
+        self.palette_bg = EditorColors.PALETTE_BG
+        self.grid_color = EditorColors.GRID_COLOR
+        self.selection_color = EditorColors.SELECTION_COLOR
+        self.button_color = EditorColors.BUTTON_COLOR
+        self.button_hover_color = EditorColors.BUTTON_HOVER_COLOR
+        self.text_color = EditorColors.TEXT_COLOR
         
         # Fonts
-        self.font = pygame.font.Font(None, 20)
-        self.title_font = pygame.font.Font(None, 24)
-        self.small_font = pygame.font.Font(None, 16)
+        self.font = pygame.font.Font(None, EditorConfig.FONT_SIZE_NORMAL)
+        self.title_font = pygame.font.Font(None, EditorConfig.FONT_SIZE_TITLE)
+        self.small_font = pygame.font.Font(None, EditorConfig.FONT_SIZE_SMALL)
     
     def add_empty_tileset(self):
         '''Add an empty placeholder tileset'''
         empty_tileset = {
-            'name': 'Empty',
+            'name': EditorText.EMPTY_TILESET_NAME,
             'path': None,
             'image': None,
             'tiles': [],
@@ -139,7 +140,7 @@ class TileEditor:
             png_files.sort()  # Sort alphabetically
             
             if not png_files:
-                print(f"No PNG files found in {folder_path}")
+                print(EditorText.MSG_NO_PNG_FILES.format(folder_path))
                 self.add_empty_tileset()
                 return
             
@@ -160,18 +161,18 @@ class TileEditor:
                         'total_tiles': len(tiles)
                     }
                     self.tilesets.append(tileset)
-                    print(f"Loaded tileset: {png_file} ({len(tiles)} tiles)")
+                    print(EditorText.MSG_TILESET_LOADED.format(png_file, len(tiles)))
                 except Exception as e:
-                    print(f"Error loading {png_file}: {e}")
+                    print(EditorText.MSG_ERROR_LOADING_TILESET.format(png_file, e))
             
             # Reset state
             self.current_tileset_index = 0
             self.selected_tile = 0
             self.palette_scroll = 0
             
-            print(f"Total tilesets loaded: {len(self.tilesets)}")
+            print(EditorText.MSG_TOTAL_TILESETS.format(len(self.tilesets)))
         except Exception as e:
-            print(f"Error loading tileset folder: {e}")
+            print(EditorText.MSG_ERROR_LOADING_FOLDER.format(e))
             self.add_empty_tileset()
     
     def browse_tileset_folder(self):
@@ -181,8 +182,8 @@ class TileEditor:
         root.attributes('-topmost', True)
         
         folder_path = filedialog.askdirectory(
-            title="Select Tileset Folder",
-            initialdir="images/tilesets"
+            title=EditorText.DIALOG_TITLE_FOLDER,
+            initialdir=EditorText.DIALOG_INITIAL_DIR
         )
         
         root.destroy()
@@ -202,7 +203,7 @@ class TileEditor:
         
         # Handle camera movement with arrow keys (only if not editing text)
         if not self.editing_cols and not self.editing_rows:
-            camera_speed = 10
+            camera_speed = EditorConfig.CAMERA_SPEED
             if keys[K_LEFT]:
                 self.camera_x = max(0, self.camera_x - camera_speed)
             if keys[K_RIGHT]:
@@ -236,14 +237,14 @@ class TileEditor:
                     if event.key == K_ESCAPE:
                         return False
                     if event.key == K_s and (pygame.key.get_mods() & KMOD_CTRL):
-                        self.save_map('map_editor.json')
-                        print("Map saved!")
+                        self.save_map(EditorConfig.DEFAULT_SAVE_FILE)
+                        print(EditorText.MSG_MAP_SAVED)
                     if event.key == K_l and (pygame.key.get_mods() & KMOD_CTRL):
-                        self.load_map('map_editor.json')
-                        print("Map loaded!")
+                        self.load_map(EditorConfig.DEFAULT_SAVE_FILE)
+                        print(EditorText.MSG_MAP_LOADED)
                     if event.key == K_n and (pygame.key.get_mods() & KMOD_CTRL):
                         self.clear_map()
-                        print("Map cleared!")
+                        print(EditorText.MSG_MAP_CLEARED)
                     
             if event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
@@ -258,6 +259,17 @@ class TileEditor:
                     self.is_painting = False
                 if event.button == 3:
                     self.is_erasing = False
+            
+            if event.type == pygame.VIDEORESIZE:
+                # Handle window resize
+                self.screen_width = event.w
+                self.screen_height = event.h
+                self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                # Recalculate layout
+                self.palette_x = self.screen_width - self.palette_width
+                self.map_width = self.palette_x - self.map_start_x - EditorConfig.MAP_SPACING
+                self.map_height = self.screen_height
+                self.palette_rows_visible = (self.screen_height - self.tab_height) // self.palette_tile_size
             
             if event.type == MOUSEWHEEL:
                 # Handle all scrolling through this event
@@ -299,7 +311,7 @@ class TileEditor:
         '''Apply the new grid size from user input'''
         try:
             new_size = int(self.input_text)
-            if new_size > 0 and new_size <= 200:  # Reasonable limits
+            if EditorConfig.MIN_GRID_SIZE <= new_size <= EditorConfig.MAX_GRID_SIZE:
                 if self.editing_cols:
                     old_grid = self.map_grid
                     self.map_cols = new_size
@@ -380,7 +392,7 @@ class TileEditor:
     
     def change_grid_width(self, delta):
         '''Change grid width by delta in real time'''
-        new_cols = max(1, min(200, self.map_cols + delta))
+        new_cols = max(EditorConfig.MIN_GRID_SIZE, min(EditorConfig.MAX_GRID_SIZE, self.map_cols + delta))
         if new_cols != self.map_cols:
             old_grid = self.map_grid
             self.map_cols = new_cols
@@ -394,7 +406,7 @@ class TileEditor:
     
     def change_grid_height(self, delta):
         '''Change grid height by delta in real time'''
-        new_rows = max(1, min(200, self.map_rows + delta))
+        new_rows = max(EditorConfig.MIN_GRID_SIZE, min(EditorConfig.MAX_GRID_SIZE, self.map_rows + delta))
         if new_rows != self.map_rows:
             old_grid = self.map_grid
             self.map_rows = new_rows
@@ -552,11 +564,13 @@ class TileEditor:
         # Draw scrollbar indicator if needed
         total_rows = (current_tileset['total_tiles'] + self.palette_cols - 1) // self.palette_cols
         if total_rows > self.palette_rows_visible:
-            scrollbar_height = max(20, int((self.screen_height - self.tab_height) * self.palette_rows_visible / total_rows))
+            scrollbar_height = max(EditorConfig.SCROLLBAR_MIN_HEIGHT, 
+                                  int((self.screen_height - self.tab_height) * self.palette_rows_visible / total_rows))
             scrollbar_y = self.tab_height + int(self.palette_scroll * ((self.screen_height - self.tab_height) - scrollbar_height) / 
                             (total_rows - self.palette_rows_visible))
             pygame.draw.rect(self.screen, self.selection_color,
-                           (self.palette_x - 5, scrollbar_y, 3, scrollbar_height))
+                           (self.palette_x - EditorConfig.SCROLLBAR_OFFSET, scrollbar_y, 
+                            EditorConfig.SCROLLBAR_WIDTH, scrollbar_height))
     
     def draw_tileset_tabs(self):
         '''Draw tabs for switching between tilesets'''
@@ -567,7 +581,7 @@ class TileEditor:
         
         # Calculate tab width
         tab_width = self.palette_width // len(self.tilesets) if len(self.tilesets) > 0 else self.palette_width
-        tab_width = max(30, min(tab_width, 80))  # Min 30px, max 80px per tab
+        tab_width = max(EditorConfig.TAB_MIN_WIDTH, min(tab_width, EditorConfig.TAB_MAX_WIDTH))
         
         for i, tileset in enumerate(self.tilesets):
             x = self.palette_x + i * tab_width
@@ -577,12 +591,12 @@ class TileEditor:
             tab_rect = pygame.Rect(x, 0, tab_width, self.tab_height)
             self.tab_rects.append(tab_rect)
             pygame.draw.rect(self.screen, tab_color, tab_rect)
-            pygame.draw.rect(self.screen, self.text_color, tab_rect, 1)
+            pygame.draw.rect(self.screen, EditorColors.TAB_BORDER_COLOR, tab_rect, 1)
             
             # Tab label (truncated name)
             name = tileset['name']
-            if len(name) > 8:
-                name = name[:7] + "..."
+            if len(name) > EditorConfig.TAB_NAME_MAX_LENGTH:
+                name = name[:EditorConfig.TAB_NAME_MAX_LENGTH-1] + EditorText.TAB_ELLIPSIS
             text = self.small_font.render(name, True, self.text_color)
             text_rect = text.get_rect(center=tab_rect.center)
             self.screen.blit(text, text_rect)
@@ -601,22 +615,9 @@ class TileEditor:
         y_offset += 35
         
         # Instructions
-        instructions = [
-            "=== CONTROLS ===",
-            "Left Click: Paint",
-            "Right Click: Erase",
-            "Scroll Wheel: Scroll",
-            "Arrow Keys: Pan Map",
-            "",
-            "Ctrl+S: Save",
-            "Ctrl+L: Load",
-            "Ctrl+N: Clear",
-            "ESC: Exit",
-        ]
-        
-        for text in instructions:
+        for text in EditorText.INSTRUCTIONS:
             if text.startswith("==="):
-                text_surf = self.font.render(text, True, (255, 255, 150))
+                text_surf = self.font.render(text, True, EditorColors.TEXT_HIGHLIGHT_COLOR)
             else:
                 text_surf = self.font.render(text, True, self.text_color)
             self.screen.blit(text_surf, (10, y_offset))
@@ -625,41 +626,41 @@ class TileEditor:
         y_offset += 10
         
         # Tileset controls
-        tileset_title = self.font.render("=== TILESET ===", True, (255, 255, 150))
+        tileset_title = self.font.render(EditorText.HEADER_TILESET, True, EditorColors.TEXT_HIGHLIGHT_COLOR)
         self.screen.blit(tileset_title, (10, y_offset))
         y_offset += 25
         
         # Load tileset button
-        self.load_tileset_rect = pygame.Rect(10, y_offset, 200, 30)
+        self.load_tileset_rect = pygame.Rect(10, y_offset, EditorConfig.BUTTON_LARGE_WIDTH, EditorConfig.BUTTON_HEIGHT)
         pygame.draw.rect(self.screen, self.button_color, self.load_tileset_rect)
         pygame.draw.rect(self.screen, self.text_color, self.load_tileset_rect, 2)
-        load_text = self.font.render("Load Folder...", True, self.text_color)
+        load_text = self.font.render(EditorText.BUTTON_LOAD_FOLDER, True, self.text_color)
         text_rect = load_text.get_rect(center=self.load_tileset_rect.center)
         self.screen.blit(load_text, text_rect)
         
         y_offset += 40
         
         # Grid size controls
-        grid_title = self.font.render("=== GRID SIZE ===", True, (255, 255, 150))
+        grid_title = self.font.render(EditorText.HEADER_GRID_SIZE, True, EditorColors.TEXT_HIGHLIGHT_COLOR)
         self.screen.blit(grid_title, (10, y_offset))
         y_offset += 25
         
         # Width control
-        width_label = self.font.render("Width:", True, self.text_color)
+        width_label = self.font.render(EditorText.LABEL_WIDTH, True, self.text_color)
         self.screen.blit(width_label, (10, y_offset))
         y_offset += 20
         
         # Width controls: [-] [value] [+]
         # Minus button
-        self.width_minus_rect = pygame.Rect(10, y_offset, 30, 30)
+        self.width_minus_rect = pygame.Rect(10, y_offset, EditorConfig.BUTTON_SMALL_SIZE, EditorConfig.BUTTON_HEIGHT)
         pygame.draw.rect(self.screen, self.button_color, self.width_minus_rect)
         pygame.draw.rect(self.screen, self.text_color, self.width_minus_rect, 2)
-        minus_text = self.title_font.render("-", True, self.text_color)
+        minus_text = self.title_font.render(EditorText.BUTTON_MINUS, True, self.text_color)
         minus_text_rect = minus_text.get_rect(center=self.width_minus_rect.center)
         self.screen.blit(minus_text, minus_text_rect)
         
         # Value display/input
-        self.width_value_rect = pygame.Rect(45, y_offset, 130, 30)
+        self.width_value_rect = pygame.Rect(45, y_offset, EditorConfig.BUTTON_VALUE_WIDTH, EditorConfig.BUTTON_HEIGHT)
         button_color = self.button_hover_color if self.editing_cols else self.button_color
         pygame.draw.rect(self.screen, button_color, self.width_value_rect)
         pygame.draw.rect(self.screen, self.text_color, self.width_value_rect, 2)
@@ -672,31 +673,31 @@ class TileEditor:
         self.screen.blit(width_text, text_rect)
         
         # Plus button
-        self.width_plus_rect = pygame.Rect(180, y_offset, 30, 30)
+        self.width_plus_rect = pygame.Rect(180, y_offset, EditorConfig.BUTTON_SMALL_SIZE, EditorConfig.BUTTON_HEIGHT)
         pygame.draw.rect(self.screen, self.button_color, self.width_plus_rect)
         pygame.draw.rect(self.screen, self.text_color, self.width_plus_rect, 2)
-        plus_text = self.title_font.render("+", True, self.text_color)
+        plus_text = self.title_font.render(EditorText.BUTTON_PLUS, True, self.text_color)
         plus_text_rect = plus_text.get_rect(center=self.width_plus_rect.center)
         self.screen.blit(plus_text, plus_text_rect)
         
         y_offset += 40
         
         # Height control
-        height_label = self.font.render("Height:", True, self.text_color)
+        height_label = self.font.render(EditorText.LABEL_HEIGHT, True, self.text_color)
         self.screen.blit(height_label, (10, y_offset))
         y_offset += 20
         
         # Height controls: [-] [value] [+]
         # Minus button
-        self.height_minus_rect = pygame.Rect(10, y_offset, 30, 30)
+        self.height_minus_rect = pygame.Rect(10, y_offset, EditorConfig.BUTTON_SMALL_SIZE, EditorConfig.BUTTON_HEIGHT)
         pygame.draw.rect(self.screen, self.button_color, self.height_minus_rect)
         pygame.draw.rect(self.screen, self.text_color, self.height_minus_rect, 2)
-        minus_text = self.title_font.render("-", True, self.text_color)
+        minus_text = self.title_font.render(EditorText.BUTTON_MINUS, True, self.text_color)
         minus_text_rect = minus_text.get_rect(center=self.height_minus_rect.center)
         self.screen.blit(minus_text, minus_text_rect)
         
         # Value display/input
-        self.height_value_rect = pygame.Rect(45, y_offset, 130, 30)
+        self.height_value_rect = pygame.Rect(45, y_offset, EditorConfig.BUTTON_VALUE_WIDTH, EditorConfig.BUTTON_HEIGHT)
         button_color = self.button_hover_color if self.editing_rows else self.button_color
         pygame.draw.rect(self.screen, button_color, self.height_value_rect)
         pygame.draw.rect(self.screen, self.text_color, self.height_value_rect, 2)
@@ -709,17 +710,17 @@ class TileEditor:
         self.screen.blit(height_text, text_rect)
         
         # Plus button
-        self.height_plus_rect = pygame.Rect(180, y_offset, 30, 30)
+        self.height_plus_rect = pygame.Rect(180, y_offset, EditorConfig.BUTTON_SMALL_SIZE, EditorConfig.BUTTON_HEIGHT)
         pygame.draw.rect(self.screen, self.button_color, self.height_plus_rect)
         pygame.draw.rect(self.screen, self.text_color, self.height_plus_rect, 2)
-        plus_text = self.title_font.render("+", True, self.text_color)
+        plus_text = self.title_font.render(EditorText.BUTTON_PLUS, True, self.text_color)
         plus_text_rect = plus_text.get_rect(center=self.height_plus_rect.center)
         self.screen.blit(plus_text, plus_text_rect)
         
         y_offset += 40
         
         # Map info
-        info_title = self.font.render("=== MAP INFO ===", True, (255, 255, 150))
+        info_title = self.font.render(EditorText.HEADER_MAP_INFO, True, EditorColors.TEXT_HIGHLIGHT_COLOR)
         self.screen.blit(info_title, (10, y_offset))
         y_offset += 25
         
@@ -727,18 +728,18 @@ class TileEditor:
         total_tiles_placed = np.sum(self.map_grid[:, :, 0] >= 0)
         
         current_tileset = self.get_current_tileset()
-        current_tileset_info = f"{len(self.tilesets)} loaded"
+        current_tileset_info = EditorText.INFO_TILESET_LOADED.format(len(self.tilesets))
         if current_tileset:
-            current_tileset_info = f"{current_tileset['name']} ({current_tileset['total_tiles']})"
+            current_tileset_info = EditorText.INFO_TILESET_DETAILS.format(current_tileset['name'], current_tileset['total_tiles'])
         
         info_texts = [
-            f"Tile: {self.selected_tile}",
-            f"Total: {total_tiles_placed} tiles",
-            f"Tileset: {current_tileset_info}"
+            EditorText.INFO_TILE.format(self.selected_tile),
+            EditorText.INFO_TOTAL.format(total_tiles_placed),
+            EditorText.INFO_TILESET.format(current_tileset_info)
         ]
         
         for text in info_texts:
-            text_surf = self.font.render(text, True, (150, 150, 150))
+            text_surf = self.font.render(text, True, EditorColors.TEXT_DIM_COLOR)
             self.screen.blit(text_surf, (10, y_offset))
             y_offset += 22
     
@@ -815,7 +816,7 @@ class TileEditor:
                                 }
                                 self.tilesets.append(tileset)
                             except Exception as e:
-                                print(f"Error loading tileset {ts_info['name']}: {e}")
+                                print(EditorText.MSG_ERROR_LOADING_TILESET.format(ts_info['name'], e))
                 
                 # Load map grid
                 loaded_grid = np.array(map_data["tilegrid"], dtype=int)
@@ -836,11 +837,11 @@ class TileEditor:
                     self.map_grid = loaded_grid
                     self.map_rows, self.map_cols = loaded_grid.shape[0], loaded_grid.shape[1]
                 
-                print(f"Map loaded from {filename}")
+                print(EditorText.MSG_MAP_LOADED)
         except FileNotFoundError:
-            print(f"File {filename} not found. Starting with empty map.")
+            print(EditorText.MSG_FILE_NOT_FOUND.format(filename))
         except Exception as e:
-            print(f"Error loading map: {e}")
+            print(EditorText.MSG_ERROR_LOADING_MAP.format(e))
     
     def clear_map(self):
         '''Clear the entire map'''

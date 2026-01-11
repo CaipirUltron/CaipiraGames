@@ -44,7 +44,7 @@ The editor now supports loading multiple PNG tilesets from a single folder:
 
 **Example folder structure:**
 ```
-images/tilesets/scifi/Tileset/
+assets/tilesets/scifi/
   ├── level_tileset.png      (walls, floors, decorations)
   ├── platform_moving.png    (special objects)
   └── enemies.png            (enemy sprites)
@@ -133,18 +133,18 @@ The editor saves maps in JSON format with multi-tileset support:
     "map_tile_size": 32,
     "width": 100,
     "height": 50,
-    "tileset_folder": "images/tilesets/scifi/Tileset",
+    "tileset_folder": "assets/tilesets/scifi",
     "tilesets": [
         {
             "name": "level_tileset",
-            "path": "images/tilesets/scifi/Tileset/level_tileset.png",
+            "path": "assets/tilesets/scifi/level_tileset.png",
             "tiles_per_row": 18,
             "tiles_per_col": 18,
             "total_tiles": 324
         },
         {
             "name": "platform_moving",
-            "path": "images/tilesets/scifi/Tileset/platform_moving.png",
+            "path": "assets/tilesets/scifi/platform_moving.png",
             "tiles_per_row": 30,
             "tiles_per_col": 65,
             "total_tiles": 1950

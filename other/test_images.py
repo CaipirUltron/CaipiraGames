@@ -14,7 +14,7 @@ ATARI_RESOLUTION = (192, 160)
 
 pg.init()
 pg.display.set_caption("Test Images")
-pg.display.set_icon(pg.image.load("./images/caipiragames.png"))
+pg.display.set_icon(pg.image.load("./assets/icons/caipiragames.png"))
 
 s = 48
 tilemap = Image.open('tilemap.png')

@@ -12,7 +12,7 @@ class SquidGame(Scene):
     def __init__(self, game, name):
         super().__init__(game, name)
         self.deltaTime = 1/self.game.fps
-        self.player = Player("images/sprites/player", self.deltaTime)
+        self.player = Player("assets/sprites/player", self.deltaTime)
 
     def getInput(self):
         self.mouse_x, self.mouse_y = pygame.mouse.get_pos()

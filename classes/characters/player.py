@@ -11,7 +11,7 @@ from classes.common import GameObject
 class Player(GameObject):
 
     def __init__(self):
-        image = pygame.image.load('./images/sprites/player/player.png')
+        image = pygame.image.load('./assets/sprites/player/player.png')
         size = image.get_size()
         offset = (size[0]/2, size[1]/2)
         super().__init__(image, (offset))

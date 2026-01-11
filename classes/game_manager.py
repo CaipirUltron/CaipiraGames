@@ -16,7 +16,7 @@ class GameManager():
     def __init__(self):
         pygame.init()
         pygame.display.set_caption("Caipira Games")
-        pygame.display.set_icon(pygame.image.load("./images/caipiragames.png"))
+        pygame.display.set_icon(pygame.image.load("./assets/icons/caipiragames.png"))
 
         self.screen = pygame.display.set_mode(HD720_RESOLUTION)
         self.screen_rect = self.screen.get_rect()

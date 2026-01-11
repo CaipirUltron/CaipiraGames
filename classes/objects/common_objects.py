@@ -10,7 +10,7 @@ class Background(GameObject):
     '''
     def __init__(self, *groups):
         self._layer = -1
-        image = pygame.transform.scale(pygame.image.load("images/sprites/bg/axis.png"), (1200,1200) ).convert_alpha()
+        image = pygame.transform.scale(pygame.image.load("assets/sprites/bg/axis.png"), (1200,1200) ).convert_alpha()
         img_size = image.get_size()
         super().__init__(image, offset=(img_size[0]/2, img_size[1]/2), *groups)
 
