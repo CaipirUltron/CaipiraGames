@@ -2,8 +2,8 @@ import pygame
 from pygame.locals import *
 import math
 
-from classes.scenes.scene import Scene
-from classes.characters.player import Player
+from src.scenes.scene import Scene
+from src.characters.player import Player
 
 class SquidGame(Scene):
     """ 

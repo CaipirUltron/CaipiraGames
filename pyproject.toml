@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "caipiragames"
+version = "1.0.0"
+description = "The Ultimate Caipira Experience"
+readme = "README.md"
+authors = [ { name = "Matheus Reis", email = "matheus.ferreira.reis@gmail.com" } ]
+license = { text = "GPLv3" }
+dependencies = [
+  "numpy",
+  "pygame",
+  "pymunk",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["classes*"]

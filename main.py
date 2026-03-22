@@ -4,10 +4,10 @@ Creates GM (Game Manager object) to control the game.
 Creates game scenes and executes the runningLoop() of the active scene.
 '''
 import pygame
-from classes import GameManager
-from classes.scenes.menus import MainMenu
-from classes.scenes.game import GameLevel
-from classes.transitions import Fade
+from game_manager import GameManager
+from scenes.menus import MainMenu
+from scenes.game import GameLevel
+from transitions import Fade
 
 if not 'game_manager' in locals():
     GM = GameManager()

@@ -11,6 +11,41 @@ $ *pip3 install pymunk*
 
 $ *python3 main.py*
 
+**Development setup (recommended)**
+
+- Create a virtual environment (if you don't have one):
+
+    ```bash
+    python3 -m venv .venv
+    ```
+
+- Activate the virtual environment:
+
+    ```bash
+    source .venv/bin/activate
+    ```
+
+- Upgrade pip and install dependencies:
+
+    ```bash
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
+
+- Install the project in editable mode (optional but useful for development):
+
+    ```bash
+    pip install -e .
+    ```
+
+- Run the game:
+
+    ```bash
+    python main.py
+    ```
+
+To completely reset the environment, deactivate and remove `.venv` then recreate it.
+
 
 Project is structured in the following way:
 

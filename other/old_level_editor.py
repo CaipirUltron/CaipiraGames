@@ -2,8 +2,8 @@ import pygame, sys
 from pygame.locals import *
 import numpy as np
 
-from classes.scenes import Scene
-from classes.basics.tilemap import TileMap
+from src.scenes import Scene
+from src.basics.tilemap import TileMap
 
 
 class LevelEditor(Scene):
