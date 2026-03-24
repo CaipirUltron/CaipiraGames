@@ -1,0 +1,53 @@
+{
+  "image": "astronaut.png",
+  "frame_width": 80,
+  "frame_height": 80,
+  "grid_width": 8,
+  "animations": {
+    "idle": {
+      "row": 0,
+      "col": 0,
+      "frame_count": 3
+    },
+    "walk": {
+      "row": 0,
+      "col": 3,
+      "frame_count": 10
+    },
+    "jump": {
+      "row": 1,
+      "col": 5,
+      "frame_count": 6
+    },
+    "duck": {
+      "row": 2,
+      "col": 3,
+      "frame_count": 1
+    },
+    "stand": {
+      "row": 2,
+      "col": 4,
+      "frame_count": 4
+    },
+    "hurt": {
+      "row": 3,
+      "col": 0,
+      "frame_count": 2
+    },
+    "cling": {
+      "row": 3,
+      "col": 2,
+      "frame_count": 1
+    },
+    "shoot_up": {
+      "row": 3,
+      "col": 3,
+      "frame_count": 1
+    },
+    "shoot_walk": {
+      "row": 3,
+      "col": 4,
+      "frame_count": 10
+    }
+  }
+}
