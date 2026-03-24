@@ -50,7 +50,6 @@ class TestStateMachine(unittest.TestCase):
             TestState,
             TestEvent,
             TestState.IDLE,
-            track_duration=True,
             verbose=False
         )
     
@@ -243,17 +242,90 @@ class TestStateMachine(unittest.TestCase):
         self.assertLess(duration2, 0.01)
     
     def test_duration_tracking_disabled(self):
-        """Test behavior when duration tracking is disabled."""
+        """Duration tracking is always enabled (no opt-out)."""
         sm = StateMachine(
             TestState,
             TestEvent,
-            TestState.IDLE,
-            track_duration=False
+            TestState.IDLE
         )
-        
+
         duration = sm.get_state_duration()
+
+        self.assertGreaterEqual(duration, 0.0)
+
+    def test_state_duration_history(self):
+        """Test that durations for visited states are recorded in history."""
+        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+
+        # Spend a small amount of time in IDLE
+        time.sleep(0.05)
+        self.sm.process_event(TestEvent.START)
+
+        history = self.sm.get_state_time_history()
+
+        # Expect two entries: IDLE and ACTIVE
+        self.assertEqual([s for s, _ in history], [TestState.IDLE, TestState.ACTIVE])
+
+        # IDLE should have a positive recorded duration
+        self.assertGreater(history[0][1], 0)
+
+        # ACTIVE duration should be >= 0 (just entered)
+        self.assertGreaterEqual(history[1][1], 0)
+    
+    def test_event_history(self):
+        """Test that events triggering transitions are recorded."""
+        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
+        self.sm.add_transition(TestState.PAUSED, TestEvent.RESUME, TestState.ACTIVE)
         
-        self.assertEqual(duration, 0.0)
+        self.sm.process_event(TestEvent.START)
+        self.sm.process_event(TestEvent.PAUSE)
+        self.sm.process_event(TestEvent.RESUME)
+        
+        event_history = self.sm.get_event_history()
+        
+        self.assertEqual(event_history, [TestEvent.START, TestEvent.PAUSE, TestEvent.RESUME])
+    
+    def test_get_last_transition(self):
+        """Test getting the last transition event."""
+        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        
+        # No transitions yet
+        self.assertIsNone(self.sm.get_last_transition())
+        
+        self.sm.process_event(TestEvent.START)
+        
+        # After transition
+        self.assertEqual(self.sm.get_last_transition(), TestEvent.START)
+    
+    def test_full_transition_history(self):
+        """Test complete transition history with states, events, and durations."""
+        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
+        
+        time.sleep(0.05)
+        self.sm.process_event(TestEvent.START)
+        time.sleep(0.05)
+        self.sm.process_event(TestEvent.PAUSE)
+        
+        full_history = self.sm.get_full_transition_history()
+        
+        # Should have 2 transitions: IDLE->ACTIVE, ACTIVE->PAUSED
+        self.assertEqual(len(full_history), 2)
+        
+        # Check first transition
+        from_state1, event1, to_state1, duration1 = full_history[0]
+        self.assertEqual(from_state1, TestState.IDLE)
+        self.assertEqual(event1, TestEvent.START)
+        self.assertEqual(to_state1, TestState.ACTIVE)
+        self.assertGreater(duration1, 0)
+        
+        # Check second transition
+        from_state2, event2, to_state2, duration2 = full_history[1]
+        self.assertEqual(from_state2, TestState.ACTIVE)
+        self.assertEqual(event2, TestEvent.PAUSE)
+        self.assertEqual(to_state2, TestState.PAUSED)
+        self.assertGreater(duration2, 0)
     
     def test_is_in_state(self):
         """Test is_in_state utility method."""

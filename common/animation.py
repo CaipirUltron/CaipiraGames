@@ -11,10 +11,12 @@ Supports:
 - Looping animations with wrap-around
 """
 
+import json
+import math
 import os
-import time
 from enum import Enum
-from typing import Dict, Callable, Optional, Any, Union, Tuple, List
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Union
 
 import pygame
 
@@ -23,57 +25,9 @@ from common.state_machine import StateMachine
 
 class Animation:
     """
-    General-purpose animation controller for game objects.
-    
-    Uses an internal StateMachine to manage frame transitions. Each state represents
-    an animation frame. The class handles time-based frame advancement and can
-    optionally support directional rendering with frame flipping.
-    
-    Supports:
-    - Loading frames from disk (image files) or using pre-loaded pygame.Surface objects
-    - Time-based frame advancement with configurable delays
-    - Speed multipliers for animation variations (e.g., running faster than walking)
-    - Optional frame flipping for directional changes (character turning around)
-    - Callbacks triggered on frame changes
-    - Custom transition events for flexible animation control
-    
-    Example - Simple walk cycle:
-        class WalkFrame(Enum):
-            FRAME_1 = 1
-            FRAME_2 = 2
-            FRAME_3 = 3
-        
-        class AnimEvent(Enum):
-            NEXT_FRAME = "next"
-        
-        # Define frame transitions: 1 -> 2 -> 3 -> 1 (loops)
-        transitions = [
-            (WalkFrame.FRAME_1, AnimEvent.NEXT_FRAME, WalkFrame.FRAME_2),
-            (WalkFrame.FRAME_2, AnimEvent.NEXT_FRAME, WalkFrame.FRAME_3),
-            (WalkFrame.FRAME_3, AnimEvent.NEXT_FRAME, WalkFrame.FRAME_1),
-        ]
-        
-        # Load frames from disk
-        frame_paths = {
-            WalkFrame.FRAME_1: "assets/frame1.png",
-            WalkFrame.FRAME_2: "assets/frame2.png",
-            WalkFrame.FRAME_3: "assets/frame3.png",
-        }
-        
-        anim = Animation(
-            state_enum=WalkFrame,
-            event_enum=AnimEvent,
-            initial_state=WalkFrame.FRAME_1,
-            transitions=transitions,
-            frame_dict=frame_paths,
-            base_frame_delay=0.1
-        )
-        
-        # In game loop:
-        anim.update(delta_time)  # Update internal timer
-        if anim.should_advance_frame():  # Check if delay threshold reached
-            anim.advance_frame()  # Trigger state transition to next frame
-            frame_surf = anim.get_current_frame()  # Get pygame.Surface to render
+    Animation controller backed by StateMachine.
+    Drives frame-by-frame playback with time-based advancement, directional flipping,
+    and speed modifiers.
     """
     
     def __init__(
@@ -87,79 +41,96 @@ class Animation:
         base_frame_delay: float = 0.1,
         flipped_frame_dict: Optional[Dict[Enum, Union[str, pygame.Surface]]] = None,
         on_frame_changed: Optional[Callable[[Enum], None]] = None,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         """
-        Initialize animation controller.
-        
         Args:
-            state_enum: Enum class where each member represents a frame/state
+            state_enum: Enum class where each member represents a frame
             event_enum: Enum class defining animation events
             initial_state: Starting frame state
-            transitions: List of (from_state, event, to_state) tuples defining animation flow
-            frame_dict: Dict mapping states to:
-                - pygame.Surface objects (pre-loaded images)
-                - str paths to image files (will be loaded on init)
-            advance_event: The event used to trigger frame advancement.
-                          If None and single-member event_enum provided, uses that.
-                          Defaults to first enum member if ambiguous.
-            base_frame_delay: Default delay between frames in seconds (default 0.1)
-            flipped_frame_dict: Optional dict of flipped versions (for direction support).
-                               Keys: states, values: pygame.Surface or file paths
-            on_frame_changed: Optional callback: on_frame_changed(new_state)
-            verbose: Enable StateMachine logging
-        
+            transitions: List of (from_state, event, to_state) tuples
+            frame_dict: Dict mapping states to pygame.Surface or file paths
+            advance_event: Event used to advance frames (defaults to first enum member)
+            base_frame_delay: Seconds between frames (default 0.1)
+            flipped_frame_dict: Optional precomputed horizontally-flipped frames
+            on_frame_changed: Optional callback(new_state) fired on each frame change
+            verbose: Enable StateMachine debug logging
+
         Raises:
-            ValueError: If transitions invalid or frame files not found
+            ValueError: If advance_event cannot be determined
+            FileNotFoundError: If a frame image path does not exist
         """
         self.state_enum = state_enum
         self.event_enum = event_enum
         self.initial_state = initial_state
         self.base_frame_delay = base_frame_delay
-        self.on_frame_changed = on_frame_changed
-        self.verbose = verbose
-        
-        # Determine advance event
-        if advance_event is None:
-            # Try to use the only event if single-member enum
+        self.speed_multiplier = 1.0
+        self.direction = 1  # 1 = normal, -1 = horizontally flipped
+        self.frame_timer = 0.0
+
+        if advance_event is not None:
+            self.advance_event = advance_event
+        else:
             try:
                 self.advance_event = list(event_enum)[0]
             except (IndexError, TypeError):
-                raise ValueError("Could not determine advance_event; provide explicitly or use single-member event enum")
-        else:
-            self.advance_event = advance_event
-        
-        # Load frames from dict (convert paths to pygame.Surface)
+                raise ValueError(
+                    "Cannot determine advance_event automatically; "
+                    "provide it explicitly or use a single-member event enum"
+                )
+
         self.frames = self._load_frames(frame_dict)
-        
-        # Load optional flipped frames
-        self.flipped_frames = {}
-        if flipped_frame_dict:
-            self.flipped_frames = self._load_frames(flipped_frame_dict)
-        
-        # Track direction for flipping support
-        self.direction = 1  # 1 = normal, -1 = flipped
-        
-        # Speed multiplier for animation variations (e.g., running faster)
-        self.speed_multiplier = 1.0
-        
-        # Frame advancement timer
-        self.frame_timer = 0.0
-        self.should_update_frame = False
-        
-        # Create internal state machine
+        self.flipped_frames = self._load_frames(flipped_frame_dict) if flipped_frame_dict else {}
+
         self.sm = StateMachine(
             state_enum=state_enum,
             event_enum=event_enum,
             initial_state=initial_state,
             verbose=verbose,
-            on_transition=self._on_state_changed
+            on_transition=(
+                lambda _from, to, _ev: on_frame_changed(to)
+            ) if on_frame_changed else None,
         )
-        
-        # Register transitions
+
         for from_state, event, to_state in transitions:
             self.sm.add_transition(from_state, event, to_state)
     
+    # ─── Factory methods ─────────────────────────────────────────────────────
+
+    @classmethod
+    def _build_looping(
+        cls,
+        frames: List[pygame.Surface],
+        base_frame_delay: float = 0.1,
+        on_frame_changed: Optional[Callable[[Enum], None]] = None,
+        verbose: bool = False,
+    ) -> 'Animation':
+        """Build a looping Animation from a flat list of surfaces.
+
+        Args:
+            frames: Ordered list of frame surfaces
+            base_frame_delay: Seconds between frames
+            on_frame_changed: Optional callback on frame change
+            verbose: Enable debug logging
+
+        Returns:
+            Animation configured to loop through all frames
+        """
+        n = len(frames)
+        FrameState = Enum("FrameState", {f"FRAME_{i}": i for i in range(n)})
+        FrameEvent = Enum("FrameEvent", {"ADVANCE": "advance"})
+        states = list(FrameState)
+        return cls(
+            state_enum=FrameState,
+            event_enum=FrameEvent,
+            initial_state=states[0],
+            transitions=[(states[i], FrameEvent.ADVANCE, states[(i + 1) % n]) for i in range(n)],
+            frame_dict={states[i]: frames[i] for i in range(n)},
+            base_frame_delay=base_frame_delay,
+            on_frame_changed=on_frame_changed,
+            verbose=verbose,
+        )
+
     @classmethod
     def from_spritesheet(
         cls,
@@ -169,396 +140,347 @@ class Animation:
         base_frame_delay: float = 0.1,
         speed_multiplier: float = 1.0,
         on_frame_changed: Optional[Callable[[Enum], None]] = None,
-        verbose: bool = False
+        verbose: bool = False,
     ) -> 'Animation':
-        """
-        Create Animation from a spritesheet by automatically extracting frames.
-        
-        This classmethod handles all the boilerplate: loading the spritesheet,
-        splitting it into frames, creating enums, and setting up transitions.
-        
+        """Create a looping Animation by slicing a spritesheet.
+
         Args:
-            spritesheet_path: File path to spritesheet image or pygame.Surface
-            frame_count: Number of frames in the spritesheet
-            layout: How frames are arranged:
-                   "ROW" - all frames in single horizontal row
-                   "COLUMN" - all frames in single vertical column
-                   "GRID" - frames in grid (requires frame_rows/frame_cols)
-            base_frame_delay: Delay between frames in seconds (default 0.1)
-            speed_multiplier: Speed modifier - applied immediately (optional, can reset with set_speed_multiplier)
-            on_frame_changed: Callback function when frame changes
+            spritesheet_path: File path or already-loaded pygame.Surface
+            frame_count: Number of frames in the sheet
+            layout: "ROW" (horizontal), "COLUMN" (vertical), or "GRID"
+            base_frame_delay: Seconds between frames
+            speed_multiplier: Initial speed factor
+            on_frame_changed: Callback(new_state) on frame change
             verbose: Enable debug logging
-        
+
         Returns:
-            Animation: Fully configured animation instance ready to use
-        
-        Example:
-            # Load walk animation from 4-frame row spritesheet
-            walk_anim = Animation.from_spritesheet(
-                "assets/walk_spritesheet.png",
-                frame_count=4,
-                layout="ROW",
-                base_frame_delay=0.1
-            )
-            
-            # Use in game loop
-            walk_anim.update(delta_time)
-            if walk_anim.should_advance_frame():
-                walk_anim.advance_frame()
-            screen.blit(walk_anim.get_current_frame(), (x, y))
-        
+            Looping Animation
+
         Raises:
-            FileNotFoundError: If spritesheet file not found
-            ValueError: If spritesheet cannot be split into frame_count frames
-            pygame.error: If spritesheet cannot be loaded
+            FileNotFoundError: Spritesheet file not found
+            ValueError: Sheet dimensions incompatible with frame_count
         """
-        # Load spritesheet
-        if isinstance(spritesheet_path, str):
-            if not os.path.exists(spritesheet_path):
-                raise FileNotFoundError(f"Spritesheet not found: {spritesheet_path}")
-            try:
-                spritesheet = pygame.image.load(spritesheet_path)
-            except pygame.error as e:
-                raise pygame.error(f"Failed to load spritesheet {spritesheet_path}: {e}")
-        elif isinstance(spritesheet_path, pygame.Surface):
-            spritesheet = spritesheet_path
-        else:
-            raise TypeError(f"spritesheet_path must be str or pygame.Surface, got {type(spritesheet_path)}")
-        
-        # Split spritesheet into frames
-        frames = cls._split_spritesheet(spritesheet, frame_count, layout)
-        
+        sheet = cls._load_surface(spritesheet_path)
+        frames = cls._split_spritesheet(sheet, frame_count, layout)
         if verbose:
-            print(f"[Animation.from_spritesheet] Loaded {len(frames)} frames from spritesheet")
-        
-        # Create dynamic enums for states and events
-        FrameState = cls._create_frame_enum("FrameState", frame_count)
-        FrameEvent = cls._create_event_enum("FrameEvent", 1)
-        
-        # Create frame dictionary mapping states to surfaces
-        frame_dict = {state: frames[i] for i, state in enumerate(FrameState)}
-        
-        # Create looping transitions: frame 0 -> 1 -> 2 -> ... -> 0
-        transitions = []
-        for i in range(frame_count):
-            from_state = list(FrameState)[i]
-            to_state = list(FrameState)[(i + 1) % frame_count]
-            event = list(FrameEvent)[0]
-            transitions.append((from_state, event, to_state))
-        
-        # Create animation instance
-        anim = cls(
-            state_enum=FrameState,
-            event_enum=FrameEvent,
-            initial_state=list(FrameState)[0],
-            transitions=transitions,
-            frame_dict=frame_dict,
-            base_frame_delay=base_frame_delay,
-            on_frame_changed=on_frame_changed,
-            verbose=verbose
-        )
-        
-        # Apply speed multiplier if provided
+            print(f"[Animation] Loaded {len(frames)} frames from spritesheet")
+        anim = cls._build_looping(frames, base_frame_delay, on_frame_changed, verbose)
         if speed_multiplier != 1.0:
             anim.set_speed_multiplier(speed_multiplier)
-        
         return anim
-    
-    @staticmethod
-    def _split_spritesheet(spritesheet: pygame.Surface, frame_count: int, layout: str = "ROW") -> List[pygame.Surface]:
-        """
-        Split a spritesheet into individual frames.
-        
+
+    @classmethod
+    def from_json(
+        cls,
+        json_path: str,
+        animation_name: str,
+        base_frame_delay: float = 0.1,
+        speed_multiplier: float = 1.0,
+        on_frame_changed: Optional[Callable[[Enum], None]] = None,
+        verbose: bool = False,
+    ) -> 'Animation':
+        """Load one named animation from a packed character JSON file.
+
         Args:
-            spritesheet: pygame.Surface containing the spritesheet
-            frame_count: Number of frames to extract
-            layout: "ROW" (horizontal), "COLUMN" (vertical), or "GRID"
-        
+            json_path: Path to the character JSON metadata file
+            animation_name: Key in the "animations" dict (e.g. "walk")
+            base_frame_delay: Seconds between frames
+            speed_multiplier: Initial speed factor
+            on_frame_changed: Callback(new_state) on frame change
+            verbose: Enable debug logging
+
         Returns:
-            List of pygame.Surface objects (individual frames)
-        
+            Looping Animation for the named action
+
         Raises:
-            ValueError: If layout is invalid or frame division fails
+            FileNotFoundError: JSON or image file not found
+            KeyError: animation_name not present in JSON
         """
-        width, height = spritesheet.get_size()
-        frames = []
+        meta, sheet = cls._load_json_sheet(json_path)
+        entry = meta["animations"][animation_name]
+        col_start = entry.get("col", 0)  # Default to 0 for backward compatibility
+        row = entry["row"]
+        frame_count = entry["frame_count"]
+        frame_width = meta["frame_width"]
+        frame_height = meta["frame_height"]
+        grid_width = meta.get("grid_width", 1)  # Default to 1 for single-row backward compat
         
-        if layout == "ROW":
-            # Frames arranged horizontally
-            frame_width = width // frame_count
-            frame_height = height
-            
-            if frame_width * frame_count != width:
-                raise ValueError(
-                    f"Cannot evenly split spritesheet width ({width}) into {frame_count} ROW frames. "
-                    f"Width must be divisible by frame_count."
-                )
-            
-            for i in range(frame_count):
-                rect = pygame.Rect(i * frame_width, 0, frame_width, frame_height)
-                frame = spritesheet.subsurface(rect)
-                frames.append(frame.copy())
-        
-        elif layout == "COLUMN":
-            # Frames arranged vertically
-            frame_width = width
-            frame_height = height // frame_count
-            
-            if frame_height * frame_count != height:
-                raise ValueError(
-                    f"Cannot evenly split spritesheet height ({height}) into {frame_count} COLUMN frames. "
-                    f"Height must be divisible by frame_count."
-                )
-            
-            for i in range(frame_count):
-                rect = pygame.Rect(0, i * frame_height, frame_width, frame_height)
-                frame = spritesheet.subsurface(rect)
-                frames.append(frame.copy())
-        
-        elif layout == "GRID":
-            # Frames in grid - calculate grid dimensions
-            # Try to create a square grid for balance
-            import math
-            cols = math.ceil(math.sqrt(frame_count))
-            rows = math.ceil(frame_count / cols)
-            
-            frame_width = width // cols
-            frame_height = height // rows
-            
-            if frame_width * cols != width or frame_height * rows != height:
-                raise ValueError(
-                    f"Cannot evenly split spritesheet ({width}x{height}) into {frame_count} GRID frames. "
-                    f"Would need {cols}x{rows} grid, but dimensions don't divide evenly."
-                )
-            
-            idx = 0
-            for row in range(rows):
-                for col in range(cols):
-                    if idx >= frame_count:
-                        break
-                    rect = pygame.Rect(
-                        col * frame_width,
-                        row * frame_height,
-                        frame_width,
-                        frame_height
-                    )
-                    frame = spritesheet.subsurface(rect)
-                    frames.append(frame.copy())
-                    idx += 1
-        
+        # Use wrapping extractor if grid_width > 1 (multi-row support)
+        if grid_width > 1:
+            frames = cls._extract_row_with_wrapping(
+                sheet, row, col_start, frame_count,
+                frame_width, frame_height, grid_width
+            )
         else:
-            raise ValueError(f"Unknown layout: {layout}. Use 'ROW', 'COLUMN', or 'GRID'.")
-        
-        return frames
-    
-    @staticmethod
-    def _create_frame_enum(name: str, frame_count: int) -> type:
-        """
-        Create a dynamic Enum for animation frames.
-        
+            frames = cls._extract_row(
+                sheet, row, frame_count,
+                frame_width, frame_height,
+                col_start=col_start,
+            )
+        if verbose:
+            print(f"[Animation] Loaded '{animation_name}': {len(frames)} frames from {json_path}")
+        anim = cls._build_looping(frames, base_frame_delay, on_frame_changed, verbose)
+        if speed_multiplier != 1.0:
+            anim.set_speed_multiplier(speed_multiplier)
+        return anim
+
+    @classmethod
+    def load_all(
+        cls,
+        json_path: str,
+        base_frame_delay: float = 0.1,
+        speed_multiplier: float = 1.0,
+        on_frame_changed: Optional[Callable[[Enum], None]] = None,
+        verbose: bool = False,
+    ) -> Dict[str, 'Animation']:
+        """Load all animations defined in a character JSON file.
+
         Args:
-            name: Name of the enum class
-            frame_count: Number of frame states to create
-        
+            json_path: Path to the character JSON metadata file
+            base_frame_delay: Seconds between frames (applied to all)
+            speed_multiplier: Initial speed factor (applied to all)
+            on_frame_changed: Callback(new_state) on frame change
+            verbose: Enable debug logging
+
         Returns:
-            Enum class with members: FRAME_0, FRAME_1, FRAME_2, ..., FRAME_N
-        """
-        members = {f"FRAME_{i}": i for i in range(frame_count)}
-        return Enum(name, members)
-    
-    @staticmethod
-    def _create_event_enum(name: str, event_count: int) -> type:
-        """
-        Create a dynamic Enum for animation events.
-        
-        Args:
-            name: Name of the enum class
-            event_count: Number of event types to create
-        
-        Returns:
-            Enum class with members: EVENT_0, EVENT_1, EVENT_2, ..., EVENT_N
-        """
-        members = {f"EVENT_{i}": f"event_{i}" for i in range(event_count)}
-        return Enum(name, members)
-    
-    def _load_frames(self, frame_dict: Dict[Enum, Union[str, pygame.Surface]]) -> Dict[Enum, pygame.Surface]:
-        """
-        Load frames from dict, converting file paths to pygame.Surface objects.
-        
-        Args:
-            frame_dict: Dict mapping states to pygame.Surface or file paths
-        
-        Returns:
-            Dict mapping states to pygame.Surface objects
-        
+            Dict mapping animation name to Animation instance
+
         Raises:
-            FileNotFoundError: If image file path doesn't exist
-            pygame.error: If image cannot be loaded
+            FileNotFoundError: JSON or image file not found
         """
-        loaded_frames = {}
+        meta, sheet = cls._load_json_sheet(json_path)
+        result: Dict[str, 'Animation'] = {}
+        grid_width = meta.get("grid_width", 1)  # Default to 1 for single-row backward compat
+        frame_width = meta["frame_width"]
+        frame_height = meta["frame_height"]
         
-        for state, frame_data in frame_dict.items():
-            if isinstance(frame_data, str):
-                # File path - load from disk
-                if not os.path.exists(frame_data):
-                    raise FileNotFoundError(f"Frame image not found: {frame_data}")
-                try:
-                    loaded_frames[state] = pygame.image.load(frame_data)
-                    if self.verbose:
-                        print(f"[Animation] Loaded frame {state.name}: {frame_data}")
-                except pygame.error as e:
-                    raise pygame.error(f"Failed to load frame {state.name} from {frame_data}: {e}")
-            elif isinstance(frame_data, pygame.Surface):
-                # Already loaded surface
-                loaded_frames[state] = frame_data
+        for name, entry in meta["animations"].items():
+            col_start = entry.get("col", 0)  # Default to 0 for backward compatibility
+            row = entry["row"]
+            frame_count = entry["frame_count"]
+            
+            # Use wrapping extractor if grid_width > 1 (multi-row support)
+            if grid_width > 1:
+                frames = cls._extract_row_with_wrapping(
+                    sheet, row, col_start, frame_count,
+                    frame_width, frame_height, grid_width
+                )
             else:
-                raise TypeError(f"Frame data must be str (path) or pygame.Surface, got {type(frame_data)}")
-        
-        return loaded_frames
-    
-    def _on_state_changed(self, from_state: Enum, to_state: Enum, event: Enum) -> None:
-        """Internal callback when state machine transitions (frame changes internally)."""
-        if self.on_frame_changed:
-            try:
-                self.on_frame_changed(to_state)
-            except Exception as e:
-                if self.verbose:
-                    print(f"[Animation] Frame change callback error: {e}")
-    
-    def update(self, delta_time: float) -> None:
-        """
-        Update animation timer. Call once per game frame.
-        
-        Args:
-            delta_time: Time elapsed since last frame (seconds)
-        
-        Note:
-            Use should_advance_frame() to check if time threshold is reached,
-            then call advance_frame() to trigger transition.
-        """
-        self.frame_timer += delta_time
-        
-        # Calculate effective delay with speed multiplier
-        effective_delay = self.base_frame_delay / self.speed_multiplier
-        
-        # Check if we should advance
-        if self.frame_timer >= effective_delay:
-            self.should_update_frame = True
-    
-    def should_advance_frame(self) -> bool:
-        """
-        Check if frame advancement threshold has been reached.
-        
-        Returns:
-            True if enough time has passed to advance frame, False otherwise
-        """
-        return self.should_update_frame
-    
-    def advance_frame(self) -> bool:
-        """
-        Trigger frame advancement by processing the advance event.
-        
-        Returns:
-            True if transition occurred, False if no valid transition
-        """
-        # Process the advance event with state machine
-        result = self.sm.process_event(self.advance_event)
-        
-        if result:
-            # Reset timer on successful transition
-            self.frame_timer = 0.0
-            self.should_update_frame = False
-        
+                frames = cls._extract_row(
+                    sheet, row, frame_count,
+                    frame_width, frame_height,
+                    col_start=col_start,
+                )
+            anim = cls._build_looping(frames, base_frame_delay, on_frame_changed, verbose)
+            if speed_multiplier != 1.0:
+                anim.set_speed_multiplier(speed_multiplier)
+            result[name] = anim
+            if verbose:
+                print(f"[Animation] Loaded '{name}': {entry['frame_count']} frames (row {entry['row']}, col {col_start})")
         return result
     
-    def get_current_frame(self) -> pygame.Surface:
-        """
-        Get the current animation frame surface.
-        
-        If direction is -1 and flipped frames are available, returns flipped version.
-        Otherwise returns normal frame, optionally flipped if no flipped_frame_dict provided.
-        
-        Returns:
-            pygame.Surface: Current frame image
-        """
-        current_state = self.sm.current_state
-        
-        # Determine which frame dict to use based on direction
-        if self.direction == -1 and self.flipped_frames:
-            frame_dict = self.flipped_frames
-        else:
-            frame_dict = self.frames
-        
-        if current_state not in frame_dict:
-            raise KeyError(f"Current state {current_state.name} not in frame dictionary")
-        
-        frame = frame_dict[current_state]
-        
-        # If direction is -1 and no precomputed flipped frames, flip on-the-fly
-        if self.direction == -1 and not self.flipped_frames:
-            frame = pygame.transform.flip(frame, True, False)
-        
-        return frame
-    
-    def get_current_state(self) -> Enum:
-        """Get the current animation state (frame)."""
-        return self.sm.current_state
-    
-    def set_speed_multiplier(self, multiplier: float) -> None:
-        """
-        Set animation speed multiplier.
+    # ─── Internal helpers ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _load_surface(source: Union[str, pygame.Surface]) -> pygame.Surface:
+        if isinstance(source, pygame.Surface):
+            return source
+        if not os.path.exists(source):
+            raise FileNotFoundError(f"Image not found: {source}")
+        try:
+            return pygame.image.load(source)
+        except pygame.error as e:
+            raise pygame.error(f"Failed to load image {source}: {e}")
+
+    @staticmethod
+    def _load_json_sheet(json_path: str):
+        """Load JSON metadata and the associated spritesheet PNG."""
+        path = Path(json_path)
+        if not path.exists():
+            raise FileNotFoundError(f"JSON metadata not found: {json_path}")
+        with open(path) as f:
+            meta = json.load(f)
+        image_path = path.parent / meta["image"]
+        if not image_path.exists():
+            raise FileNotFoundError(f"Spritesheet not found: {image_path}")
+        return meta, pygame.image.load(str(image_path))
+
+    @staticmethod
+    def _extract_row(
+        sheet: pygame.Surface,
+        row: int,
+        frame_count: int,
+        frame_width: int,
+        frame_height: int,
+        col_start: int = 0,
+    ) -> List[pygame.Surface]:
+        """Extract frames from a row of a matrix spritesheet.
         
         Args:
-            multiplier: Speed factor (1.0 = normal, 2.0 = double speed, 0.5 = half speed)
+            sheet: Spritesheet surface
+            row: Row index
+            frame_count: Number of frames to extract
+            frame_width: Width of each frame
+            frame_height: Height of each frame
+            col_start: Starting column index (default 0)
+        
+        Returns:
+            List of frames
+        """
+        return [
+            sheet.subsurface(pygame.Rect((col_start + i) * frame_width, row * frame_height, frame_width, frame_height)).copy()
+            for i in range(frame_count)
+        ]
+
+    @staticmethod
+    def _extract_row_with_wrapping(
+        sheet: pygame.Surface,
+        row: int,
+        col_start: int,
+        frame_count: int,
+        frame_width: int,
+        frame_height: int,
+        grid_width: int,
+    ) -> List[pygame.Surface]:
+        """Extract frames that may wrap across multiple rows in a grid.
+        
+        For tight-packed spritesheets, animations can span multiple rows.
+        This method handles wrapping by treating the grid as a linear sequence
+        of frames, moving to the next row when reaching grid_width columns.
+        
+        Args:
+            sheet: Spritesheet surface
+            row: Starting row index
+            col_start: Starting column index
+            frame_count: Total number of frames to extract
+            frame_width: Width of each frame
+            frame_height: Height of each frame
+            grid_width: Number of columns per row (width of grid)
+        
+        Returns:
+            List of frames in order
+        """
+        frames = []
+        current_row = row
+        current_col = col_start
+        
+        for i in range(frame_count):
+            x = current_col * frame_width
+            y = current_row * frame_height
+            frames.append(
+                sheet.subsurface(pygame.Rect(x, y, frame_width, frame_height)).copy()
+            )
+            
+            # Move to next position, wrapping to next row if needed
+            current_col += 1
+            if current_col >= grid_width:
+                current_col = 0
+                current_row += 1
+        
+        return frames
+
+    @staticmethod
+    def _split_spritesheet(sheet: pygame.Surface, frame_count: int, layout: str) -> List[pygame.Surface]:
+        """Slice a spritesheet into a flat list of frame surfaces."""
+        w, h = sheet.get_size()
+        if layout == "ROW":
+            fw, fh = w // frame_count, h
+            if fw * frame_count != w:
+                raise ValueError(f"Sheet width {w} is not divisible by frame_count {frame_count}")
+            return [sheet.subsurface(pygame.Rect(i * fw, 0, fw, fh)).copy() for i in range(frame_count)]
+        elif layout == "COLUMN":
+            fw, fh = w, h // frame_count
+            if fh * frame_count != h:
+                raise ValueError(f"Sheet height {h} is not divisible by frame_count {frame_count}")
+            return [sheet.subsurface(pygame.Rect(0, i * fh, fw, fh)).copy() for i in range(frame_count)]
+        elif layout == "GRID":
+            cols = math.ceil(math.sqrt(frame_count))
+            rows = math.ceil(frame_count / cols)
+            fw, fh = w // cols, h // rows
+            if fw * cols != w or fh * rows != h:
+                raise ValueError(f"Sheet {w}x{h} cannot be evenly split into {frame_count} grid frames")
+            frames = []
+            for r in range(rows):
+                for c in range(cols):
+                    if len(frames) >= frame_count:
+                        break
+                    frames.append(sheet.subsurface(pygame.Rect(c * fw, r * fh, fw, fh)).copy())
+            return frames
+        raise ValueError(f"Unknown layout '{layout}'. Use 'ROW', 'COLUMN', or 'GRID'.")
+    
+    def _load_frames(self, frame_dict: Dict[Enum, Union[str, pygame.Surface]]) -> Dict[Enum, pygame.Surface]:
+        return {state: (src if isinstance(src, pygame.Surface) else self._load_surface(src))
+                for state, src in frame_dict.items()}
+
+    # ─── Runtime API ─────────────────────────────────────────────────────────
+
+    def update(self, delta_time: float) -> bool:
+        """Advance the timer; fire a frame transition when the threshold is reached.
+
+        Args:
+            delta_time: Seconds elapsed since last call
+
+        Returns:
+            True if the frame advanced this tick, False otherwise
+        """
+        self.frame_timer += delta_time
+        if self.frame_timer >= self.base_frame_delay / self.speed_multiplier:
+            if self.sm.process_event(self.advance_event):
+                self.frame_timer = 0.0
+                return True
+        return False
+    
+    def get_current_frame(self) -> pygame.Surface:
+        """Return the surface for the current frame, flipping if direction == -1.
+
+        Returns:
+            pygame.Surface of the current frame
+
+        Raises:
+            KeyError: If current state has no associated frame
+        """
+        state = self.sm.current_state
+        if self.direction == -1 and self.flipped_frames:
+            frame = self.flipped_frames.get(state)
+        else:
+            frame = self.frames.get(state)
+        if frame is None:
+            raise KeyError(f"No frame for state {state.name}")
+        if self.direction == -1 and not self.flipped_frames:
+            frame = pygame.transform.flip(frame, True, False)
+        return frame
+
+    def reset(self, state: Optional[Enum] = None) -> None:
+        """Reset to initial or specified state and clear the timer.
+
+        Args:
+            state: State to reset to (defaults to initial_state)
+        """
+        self.sm.reset(state if state is not None else self.initial_state)
+        self.frame_timer = 0.0
+
+    def set_speed_multiplier(self, multiplier: float) -> None:
+        """Set the speed factor (1.0 = normal, 2.0 = double speed).
+
+        Args:
+            multiplier: Positive speed factor
+
+        Raises:
+            ValueError: If multiplier <= 0
         """
         if multiplier <= 0:
             raise ValueError(f"Speed multiplier must be positive, got {multiplier}")
         self.speed_multiplier = multiplier
-    
-    def get_speed_multiplier(self) -> float:
-        """Get current speed multiplier."""
-        return self.speed_multiplier
-    
+
     def set_direction(self, direction: int) -> None:
-        """
-        Set animation direction for frame flipping support.
-        
+        """Set the flip direction: 1 = normal, -1 = horizontally flipped.
+
         Args:
-            direction: 1 for normal, -1 for flipped (used with flipped_frame_dict if available)
+            direction: 1 or -1
+
+        Raises:
+            ValueError: If not 1 or -1
         """
         if direction not in (-1, 1):
             raise ValueError(f"Direction must be 1 or -1, got {direction}")
         self.direction = direction
-    
-    def get_direction(self) -> int:
-        """Get current direction (1 or -1)."""
-        return self.direction
-    
-    def reset(self, state: Optional[Enum] = None) -> None:
-        """
-        Reset animation to initial or specified state.
-        
-        Args:
-            state: Optional state to reset to (defaults to initial_state)
-        """
-        if state is None:
-            state = self.initial_state
-        self.sm.reset(state)
-        self.frame_timer = 0.0
-        self.should_update_frame = False
-    
-    def get_state_duration(self) -> float:
-        """Get time spent in current frame (seconds)."""
-        return self.sm.get_state_duration()
-    
-    def get_animation_history(self) -> list:
-        """Get list of all states visited in animation sequence."""
-        return self.sm.get_history()
-    
-    def is_in_state(self, state: Enum) -> bool:
-        """Check if currently in a specific animation state."""
-        return self.sm.is_in_state(state)
-    
-    def get_state_machine(self) -> StateMachine:
-        """Get internal StateMachine for advanced usage (callbacks, conditions, etc.)."""
-        return self.sm
