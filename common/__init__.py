@@ -2,6 +2,7 @@ from .game_object import *
 from .tilemap import *
 from .circular_tilemap import *
 from .state_machine import StateMachine
+from .animation import Animation
 import os
 
 # Redirect top-level `common` package to `src/common`
