@@ -13,6 +13,7 @@ dependencies = [
   "numpy",
   "pygame",
   "pymunk",
+  "Pillow",
 ]
 
 [tool.setuptools.packages.find]
