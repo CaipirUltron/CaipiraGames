@@ -1,0 +1,13 @@
+{
+  "image": "tank.png",
+  "frame_width": 80,
+  "frame_height": 64,
+  "grid_width": 7,
+  "animations": {
+    "walk": {
+      "row": 0,
+      "col": 0,
+      "frame_count": 7
+    }
+  }
+}

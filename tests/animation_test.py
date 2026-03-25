@@ -23,7 +23,7 @@ def main():
     
     # Load animation from JSON metadata using the packed astronaut spritesheet
     json_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), '..', 'assets', 'sprites', 'characters', 'astronaut.json')
+        os.path.join(os.path.dirname(__file__), '..', 'assets', 'sprites', 'characters', 'tank.json')
     )
     
     walk_anim = Animation.from_json(
@@ -85,9 +85,15 @@ def main():
         screen.fill((50, 50, 50))  # Dark background
         
         # Draw current frame centered on screen
+        scale = 2.5
         current_frame = walk_anim.get_current_frame()
-        frame_rect = current_frame.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        screen.blit(current_frame, frame_rect)
+        # Scale the sprite to 1.5x its original size
+        scaled_frame = pygame.transform.scale(
+            current_frame,
+            (int(current_frame.get_width() * scale), int(current_frame.get_height() * scale))
+        )
+        frame_rect = scaled_frame.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        screen.blit(scaled_frame, frame_rect)
         
         # Draw info text
         font = pygame.font.Font(None, 36)
