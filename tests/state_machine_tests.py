@@ -1,8 +1,8 @@
 """
-Tests for StateMachine class.
+Tests for StateMachine class (condition-based transitions).
 
 Comprehensive unit tests verifying:
-- State transitions and events
+- State transitions via conditions
 - Conditional transitions
 - Entry/exit callbacks
 - Duration tracking
@@ -16,6 +16,7 @@ import unittest
 import sys
 import os
 import time
+import logging
 from io import StringIO
 from enum import Enum
 
@@ -33,62 +34,92 @@ class TestState(Enum):
     STOPPED = "stopped"
 
 
-class TestEvent(Enum):
-    """Test events."""
-    START = "start"
-    PAUSE = "pause"
-    RESUME = "resume"
-    STOP = "stop"
-
-
 class TestStateMachine(unittest.TestCase):
     """Test cases for StateMachine class."""
     
     def setUp(self):
         """Set up test fixtures."""
-        self.sm = StateMachine(
-            TestState,
-            TestEvent,
-            TestState.IDLE,
-            verbose=False
-        )
+        self.sm = StateMachine(verbose=False, track_history=True)
+        
+        # Register all states
+        for state in TestState:
+            self.sm.add_state(state)
+        
+        # Set initial state
+        self.sm.set_state(TestState.IDLE)
+        
+        # Condition flags (external state, not using self.data)
+        self.conditions = {
+            'start': False,
+            'pause': False,
+            'resume': False,
+            'stop': False,
+        }
     
     def test_initial_state(self):
         """Test state machine initializes with correct initial state."""
         self.assertEqual(self.sm.current_state, TestState.IDLE)
-        self.assertIn(TestState.IDLE, self.sm.get_history())
+        # Initial state doesn't appear in history until a transition occurs
+        history = self.sm.get_history()
+        # History may be empty on initial state, but if present should contain IDLE
+        if history:
+            # get_history() returns (state, duration) tuples
+            history_states = [state for state, _ in history]
+            self.assertIn(TestState.IDLE, history_states)
     
     def test_simple_transition(self):
-        """Test basic state transition."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        """Test basic state transition via condition."""
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, 
+                              lambda sm: self.conditions['start'])
         
-        result = self.sm.process_event(TestEvent.START)
+        # No transition yet
+        result = self.sm.run()
+        self.assertFalse(result)
+        self.assertEqual(self.sm.current_state, TestState.IDLE)
+        
+        # Trigger condition
+        self.conditions['start'] = True
+        result = self.sm.run()
         
         self.assertTrue(result)
         self.assertEqual(self.sm.current_state, TestState.ACTIVE)
-        self.assertEqual(self.sm.get_history(), [TestState.IDLE, TestState.ACTIVE])
+        # get_history() now returns (state, duration) tuples
+        history_states = [state for state, _ in self.sm.get_history()]
+        self.assertEqual(history_states, [TestState.IDLE, TestState.ACTIVE])
     
     def test_multiple_transitions(self):
         """Test chain of transitions."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
-        self.sm.add_transition(TestState.PAUSED, TestEvent.RESUME, TestState.ACTIVE)
-        self.sm.add_transition(TestState.ACTIVE, TestEvent.STOP, TestState.STOPPED)
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, 
+                              lambda sm: self.conditions['start'])
+        self.sm.add_transition(TestState.ACTIVE, TestState.PAUSED, 
+                              lambda sm: self.conditions['pause'])
+        self.sm.add_transition(TestState.PAUSED, TestState.ACTIVE, 
+                              lambda sm: self.conditions['resume'])
+        self.sm.add_transition(TestState.ACTIVE, TestState.STOPPED, 
+                              lambda sm: self.conditions['stop'])
         
-        # Transition 1
-        self.sm.process_event(TestEvent.START)
+        # Transition 1: IDLE -> ACTIVE
+        self.conditions['start'] = True
+        self.sm.run()
+        self.conditions['start'] = False
         self.assertEqual(self.sm.current_state, TestState.ACTIVE)
         
-        # Transition 2
-        self.sm.process_event(TestEvent.PAUSE)
+        # Transition 2: ACTIVE -> PAUSED
+        self.conditions['pause'] = True
+        self.sm.run()
+        self.conditions['pause'] = False
         self.assertEqual(self.sm.current_state, TestState.PAUSED)
         
-        # Transition 3
-        self.sm.process_event(TestEvent.RESUME)
+        # Transition 3: PAUSED -> ACTIVE
+        self.conditions['resume'] = True
+        self.sm.run()
+        self.conditions['resume'] = False
         self.assertEqual(self.sm.current_state, TestState.ACTIVE)
         
-        # Transition 4
-        self.sm.process_event(TestEvent.STOP)
+        # Transition 4: ACTIVE -> STOPPED
+        self.conditions['stop'] = True
+        self.sm.run()
+        self.conditions['stop'] = False
         self.assertEqual(self.sm.current_state, TestState.STOPPED)
         
         # Verify history
@@ -97,75 +128,90 @@ class TestStateMachine(unittest.TestCase):
             TestState.ACTIVE,
             TestState.PAUSED,
             TestState.ACTIVE,
-            TestState.STOPPED
+            TestState.STOPPED,
         ]
-        self.assertEqual(self.sm.get_history(), expected_history)
+        # get_history() now returns (state, duration) tuples
+        history_states = [state for state, _ in self.sm.get_history()]
+        self.assertEqual(history_states, expected_history)
     
     def test_undefined_transition_fails(self):
-        """Test that undefined transitions fail gracefully."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        """Test that transition not defined returns False."""
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: self.conditions['start'])
         
-        # Try transition that doesn't exist
-        result = self.sm.process_event(TestEvent.PAUSE)
+        self.conditions['pause'] = True
+        result = self.sm.run()
         
         self.assertFalse(result)
         self.assertEqual(self.sm.current_state, TestState.IDLE)
     
     def test_condition_passes(self):
-        """Test transition succeeds when condition returns True."""
-        def can_start(sm, *args, **kwargs):
-            return sm.data.get("ready", False)
+        """Test transition with condition that returns True."""
+        condition_flag = [True]  # Use list to capture in lambda
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: condition_flag[0])
         
-        self.sm.add_transition(
-            TestState.IDLE,
-            TestEvent.START,
-            TestState.ACTIVE,
-            condition=can_start
-        )
+        result = self.sm.run()
         
-        # First attempt without ready flag
-        self.sm.data["ready"] = False
-        result1 = self.sm.process_event(TestEvent.START)
-        self.assertFalse(result1)
-        self.assertEqual(self.sm.current_state, TestState.IDLE)
-        
-        # Second attempt with ready flag
-        self.sm.data["ready"] = True
-        result2 = self.sm.process_event(TestEvent.START)
-        self.assertTrue(result2)
+        self.assertTrue(result)
         self.assertEqual(self.sm.current_state, TestState.ACTIVE)
     
     def test_condition_fails(self):
-        """Test transition fails when condition returns False."""
-        def needs_permission(sm, *args, **kwargs):
-            return sm.data.get("has_permission", False)
+        """Test transition with condition that returns False."""
+        condition_flag = [False]  # Use list to capture in lambda
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: condition_flag[0])
         
-        self.sm.add_transition(
-            TestState.ACTIVE,
-            TestEvent.STOP,
-            TestState.STOPPED,
-            condition=needs_permission
-        )
-        
-        self.sm.current_state = TestState.ACTIVE
-        self.sm.data["has_permission"] = False
-        
-        result = self.sm.process_event(TestEvent.STOP)
+        result = self.sm.run()
         
         self.assertFalse(result)
-        self.assertEqual(self.sm.current_state, TestState.ACTIVE)
+        self.assertEqual(self.sm.current_state, TestState.IDLE)
+    
+    def test_condition_receives_arguments(self):
+        """Test that condition receives state machine and *args, **kwargs."""
+        received_args = {}
+        
+        def condition_with_args(sm, *args, **kwargs):
+            received_args['sm_received'] = sm is not None
+            received_args['args'] = args
+            received_args['kwargs'] = kwargs
+            return True
+        
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, condition_with_args)
+        
+        self.sm.run('arg1', 'arg2', key1='value1')
+        
+        self.assertTrue(received_args['sm_received'])
+        self.assertEqual(received_args['args'], ('arg1', 'arg2'))
+        self.assertEqual(received_args['kwargs'], {'key1': 'value1'})
+    
+    def test_condition_exception_handling(self):
+        """Test that exceptions in conditions are caught and logged."""
+        def bad_condition(sm):
+            raise ValueError("Test error")
+        
+        sm = StateMachine(verbose=True)
+        sm.add_state(TestState.IDLE)
+        sm.add_state(TestState.ACTIVE)
+        sm.set_state(TestState.IDLE)
+        sm.add_transition(TestState.IDLE, TestState.ACTIVE, bad_condition)
+        
+        # Should not raise, should return False
+        result = sm.run()
+        self.assertFalse(result)
     
     def test_on_enter_callback(self):
         """Test that on_enter callbacks are called."""
         call_log = []
         
-        def on_enter_active():
+        def on_enter_active(sm):
             call_log.append("on_enter_active")
         
         self.sm.set_on_enter(TestState.ACTIVE, on_enter_active)
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: True)
         
-        self.sm.process_event(TestEvent.START)
+        self.sm.run()
         
         self.assertIn("on_enter_active", call_log)
     
@@ -173,13 +219,14 @@ class TestStateMachine(unittest.TestCase):
         """Test that on_exit callbacks are called."""
         call_log = []
         
-        def on_exit_idle():
+        def on_exit_idle(sm):
             call_log.append("on_exit_idle")
         
         self.sm.set_on_exit(TestState.IDLE, on_exit_idle)
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: True)
         
-        self.sm.process_event(TestEvent.START)
+        self.sm.run()
         
         self.assertIn("on_exit_idle", call_log)
     
@@ -187,371 +234,231 @@ class TestStateMachine(unittest.TestCase):
         """Test callbacks execute in correct order: exit -> enter."""
         call_order = []
         
-        def on_exit_idle():
+        def on_exit_idle(sm):
             call_order.append("exit_idle")
         
-        def on_enter_active():
+        def on_enter_active(sm):
             call_order.append("enter_active")
         
         self.sm.set_on_exit(TestState.IDLE, on_exit_idle)
         self.sm.set_on_enter(TestState.ACTIVE, on_enter_active)
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: True)
         
-        self.sm.process_event(TestEvent.START)
+        self.sm.run()
         
         self.assertEqual(call_order, ["exit_idle", "enter_active"])
     
-    def test_on_transition_callback(self):
-        """Test global on_transition callback."""
-        transitions_log = []
+    def test_callback_exception_handling(self):
+        """Test exception handling in callbacks."""
+        def bad_callback(sm):
+            raise RuntimeError("Callback error")
         
-        def log_transition(from_state, to_state, event):
-            transitions_log.append((from_state, to_state, event))
+        sm = StateMachine(verbose=True)
+        sm.add_state(TestState.IDLE)
+        sm.add_state(TestState.ACTIVE, on_enter=bad_callback)
+        sm.set_state(TestState.IDLE)
+        sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
         
-        sm = StateMachine(
-            TestState,
-            TestEvent,
-            TestState.IDLE,
-            on_transition=log_transition
-        )
-        
-        sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
-        
-        sm.process_event(TestEvent.START)
-        sm.process_event(TestEvent.PAUSE)
-        
-        self.assertEqual(len(transitions_log), 2)
-        self.assertEqual(transitions_log[0], (TestState.IDLE, TestState.ACTIVE, TestEvent.START))
-        self.assertEqual(transitions_log[1], (TestState.ACTIVE, TestState.PAUSED, TestEvent.PAUSE))
-    
-    def test_duration_tracking(self):
-        """Test that state duration is tracked correctly."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        
-        # Check duration in IDLE
-        duration1 = self.sm.get_state_duration()
-        self.assertGreaterEqual(duration1, 0)
-        
-        # Wait a bit and transition
-        time.sleep(0.05)
-        self.sm.process_event(TestEvent.START)
-        
-        # Check duration in ACTIVE (should be small)
-        duration2 = self.sm.get_state_duration()
-        self.assertLess(duration2, 0.01)
-    
-    def test_duration_tracking_disabled(self):
-        """Duration tracking is always enabled (no opt-out)."""
-        sm = StateMachine(
-            TestState,
-            TestEvent,
-            TestState.IDLE
-        )
-
-        duration = sm.get_state_duration()
-
-        self.assertGreaterEqual(duration, 0.0)
-
-    def test_state_duration_history(self):
-        """Test that durations for visited states are recorded in history."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-
-        # Spend a small amount of time in IDLE
-        time.sleep(0.05)
-        self.sm.process_event(TestEvent.START)
-
-        history = self.sm.get_state_time_history()
-
-        # Expect two entries: IDLE and ACTIVE
-        self.assertEqual([s for s, _ in history], [TestState.IDLE, TestState.ACTIVE])
-
-        # IDLE should have a positive recorded duration
-        self.assertGreater(history[0][1], 0)
-
-        # ACTIVE duration should be >= 0 (just entered)
-        self.assertGreaterEqual(history[1][1], 0)
-    
-    def test_event_history(self):
-        """Test that events triggering transitions are recorded."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
-        self.sm.add_transition(TestState.PAUSED, TestEvent.RESUME, TestState.ACTIVE)
-        
-        self.sm.process_event(TestEvent.START)
-        self.sm.process_event(TestEvent.PAUSE)
-        self.sm.process_event(TestEvent.RESUME)
-        
-        event_history = self.sm.get_event_history()
-        
-        self.assertEqual(event_history, [TestEvent.START, TestEvent.PAUSE, TestEvent.RESUME])
-    
-    def test_get_last_transition(self):
-        """Test getting the last transition event."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        
-        # No transitions yet
-        self.assertIsNone(self.sm.get_last_transition())
-        
-        self.sm.process_event(TestEvent.START)
-        
-        # After transition
-        self.assertEqual(self.sm.get_last_transition(), TestEvent.START)
-    
-    def test_full_transition_history(self):
-        """Test complete transition history with states, events, and durations."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
-        
-        time.sleep(0.05)
-        self.sm.process_event(TestEvent.START)
-        time.sleep(0.05)
-        self.sm.process_event(TestEvent.PAUSE)
-        
-        full_history = self.sm.get_full_transition_history()
-        
-        # Should have 2 transitions: IDLE->ACTIVE, ACTIVE->PAUSED
-        self.assertEqual(len(full_history), 2)
-        
-        # Check first transition
-        from_state1, event1, to_state1, duration1 = full_history[0]
-        self.assertEqual(from_state1, TestState.IDLE)
-        self.assertEqual(event1, TestEvent.START)
-        self.assertEqual(to_state1, TestState.ACTIVE)
-        self.assertGreater(duration1, 0)
-        
-        # Check second transition
-        from_state2, event2, to_state2, duration2 = full_history[1]
-        self.assertEqual(from_state2, TestState.ACTIVE)
-        self.assertEqual(event2, TestEvent.PAUSE)
-        self.assertEqual(to_state2, TestState.PAUSED)
-        self.assertGreater(duration2, 0)
+        # Should not raise
+        sm.run()
+        self.assertEqual(sm.current_state, TestState.ACTIVE)
     
     def test_is_in_state(self):
-        """Test is_in_state utility method."""
+        """Test is_in_state method."""
         self.assertTrue(self.sm.is_in_state(TestState.IDLE))
         self.assertFalse(self.sm.is_in_state(TestState.ACTIVE))
         
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        self.sm.process_event(TestEvent.START)
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        self.sm.run()
         
         self.assertFalse(self.sm.is_in_state(TestState.IDLE))
         self.assertTrue(self.sm.is_in_state(TestState.ACTIVE))
     
-    def test_state_history(self):
-        """Test state history tracking."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
-        self.sm.add_transition(TestState.PAUSED, TestEvent.RESUME, TestState.ACTIVE)
-        
-        self.sm.process_event(TestEvent.START)
-        self.sm.process_event(TestEvent.PAUSE)
-        self.sm.process_event(TestEvent.RESUME)
-        
-        history = self.sm.get_history()
-        self.assertEqual(
-            history,
-            [TestState.IDLE, TestState.ACTIVE, TestState.PAUSED, TestState.ACTIVE]
-        )
-    
     def test_reset(self):
-        """Test reset functionality."""
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        self.sm.add_transition(TestState.ACTIVE, TestEvent.PAUSE, TestState.PAUSED)
+        """Test set_state method to change state manually."""
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        self.sm.run()
         
-        self.sm.process_event(TestEvent.START)
-        self.sm.process_event(TestEvent.PAUSE)
+        self.assertEqual(self.sm.current_state, TestState.ACTIVE)
         
-        # Verify we're in PAUSED
-        self.assertEqual(self.sm.current_state, TestState.PAUSED)
-        self.assertEqual(len(self.sm.get_history()), 3)
-        
-        # Reset to IDLE
-        self.sm.reset(TestState.IDLE)
+        self.sm.set_state(TestState.IDLE)
         
         self.assertEqual(self.sm.current_state, TestState.IDLE)
-        self.assertEqual(self.sm.get_history(), [TestState.IDLE])
+        # History should contain transitions as (state, duration) tuples
+        history_states = [state for state, _ in self.sm.get_history()]
+        self.assertIn(TestState.IDLE, history_states)
+        self.assertIn(TestState.ACTIVE, history_states)
     
     def test_reset_calls_exit_callback(self):
-        """Test that reset calls exit callback of previous state."""
+        """Test that set_state calls exit callback of previous state."""
         call_log = []
         
-        def on_exit_paused():
-            call_log.append("exited_paused")
+        def on_exit_active(sm):
+            call_log.append("exited_active")
         
-        self.sm.set_on_exit(TestState.PAUSED, on_exit_paused)
-        self.sm.current_state = TestState.PAUSED
+        self.sm.set_on_exit(TestState.ACTIVE, on_exit_active)
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        self.sm.run()
         
-        self.sm.reset(TestState.IDLE)
+        call_log.clear()
+        self.sm.set_state(TestState.IDLE)
         
-        self.assertIn("exited_paused", call_log)
+        self.assertIn("exited_active", call_log)
     
     def test_reset_calls_enter_callback(self):
-        """Test that reset calls enter callback of new state."""
+        """Test that set_state calls enter callback of new state."""
         call_log = []
         
-        def on_enter_idle():
+        def on_enter_idle(sm):
             call_log.append("entered_idle")
         
         self.sm.set_on_enter(TestState.IDLE, on_enter_idle)
-        self.sm.current_state = TestState.ACTIVE
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        self.sm.run()
         
-        self.sm.reset(TestState.IDLE)
+        call_log.clear()
+        self.sm.set_state(TestState.IDLE)
         
         self.assertIn("entered_idle", call_log)
     
+    def test_state_history(self):
+        """Test state history tracking."""
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        self.sm.add_transition(TestState.ACTIVE, TestState.PAUSED, lambda sm: True)
+        
+        self.sm.run()
+        self.sm.run()
+        
+        # get_history() now returns (state, duration) tuples
+        history_states = [state for state, _ in self.sm.get_history()]
+        self.assertEqual(history_states,
+                        [TestState.IDLE, TestState.ACTIVE, TestState.PAUSED])
+    
+    def test_duration_tracking(self):
+        """Test state duration tracking."""
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        
+        self.sm.run()
+        
+        time.sleep(0.1)
+        duration = self.sm.get_state_duration()
+        
+        self.assertGreaterEqual(duration, 0.1)
+    
+    def test_duration_tracking_disabled(self):
+        """Test disabling duration tracking."""
+        sm = StateMachine(track_history=False)
+        sm.add_state(TestState.IDLE)
+        sm.add_state(TestState.ACTIVE)
+        sm.set_state(TestState.IDLE)
+        sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        
+        sm.run()
+        
+        # History should be None when tracking disabled
+        self.assertIsNone(sm._history)
+    
     def test_verbose_mode(self):
-        """Test verbose logging captures output."""
-        sm = StateMachine(
-            TestState,
-            TestEvent,
-            TestState.IDLE,
-            verbose=True
-        )
+        """Test verbose mode sets logging level."""
+        sm = StateMachine(verbose=True)
+        self.assertEqual(sm.logger.level, logging.DEBUG)
         
-        sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        
-        # Capture stdout
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        
-        sm.process_event(TestEvent.START)
-        
-        # Restore stdout
-        sys.stdout = sys.__stdout__
-        
-        output = captured_output.getvalue()
-        self.assertIn("IDLE", output)
-        self.assertIn("ACTIVE", output)
-        self.assertIn("START", output)
+        sm_quiet = StateMachine(verbose=False)
+        self.assertEqual(sm_quiet.logger.level, logging.WARNING)
     
-    def test_condition_receives_arguments(self):
-        """Test that condition function receives arguments correctly."""
-        received_args = []
+    def test_state_time_history(self):
+        """Test getting state time history with get_history()."""
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE, lambda sm: True)
+        self.sm.add_transition(TestState.ACTIVE, TestState.PAUSED, lambda sm: True)
         
-        def condition_with_args(sm, *args, **kwargs):
-            received_args.append({"args": args, "kwargs": kwargs})
-            return True
+        self.sm.run()
+        time.sleep(0.05)
+        self.sm.run()
         
-        self.sm.add_transition(
-            TestState.IDLE,
-            TestEvent.START,
-            TestState.ACTIVE,
-            condition=condition_with_args
-        )
+        history = self.sm.get_history()
         
-        self.sm.process_event(TestEvent.START, "arg1", "arg2", key1="val1")
-        
-        self.assertEqual(len(received_args), 1)
-        self.assertEqual(received_args[0]["args"], ("arg1", "arg2"))
-        self.assertEqual(received_args[0]["kwargs"], {"key1": "val1"})
-    
-    def test_condition_exception_handling(self):
-        """Test that exceptions in conditions are handled gracefully."""
-        def bad_condition(sm, *args, **kwargs):
-            raise ValueError("Test error")
-        
-        self.sm.add_transition(
-            TestState.IDLE,
-            TestEvent.START,
-            TestState.ACTIVE,
-            condition=bad_condition
-        )
-        
-        # Should return False without raising exception
-        result = self.sm.process_event(TestEvent.START)
-        
-        self.assertFalse(result)
-        self.assertEqual(self.sm.current_state, TestState.IDLE)
-    
-    def test_callback_exception_handling(self):
-        """Test that exceptions in callbacks don't crash state machine."""
-        def bad_callback():
-            raise RuntimeError("Callback error")
-        
-        self.sm.set_on_enter(TestState.ACTIVE, bad_callback)
-        self.sm.add_transition(TestState.IDLE, TestEvent.START, TestState.ACTIVE)
-        
-        # Should transition despite exception
-        result = self.sm.process_event(TestEvent.START)
-        
-        self.assertTrue(result)
-        self.assertEqual(self.sm.current_state, TestState.ACTIVE)
+        self.assertEqual(len(history), 3)
+        self.assertEqual(history[0][0], TestState.IDLE)
+        self.assertEqual(history[1][0], TestState.ACTIVE)
+        self.assertEqual(history[2][0], TestState.PAUSED)
     
     def test_user_data_storage(self):
-        """Test that user data is accessible and modifiable."""
-        self.sm.data["counter"] = 0
-        self.sm.data["name"] = "test"
+        """Test that state machine works without sm.data - conditions use external state."""
+        condition_flag = [False]
         
-        self.assertEqual(self.sm.data["counter"], 0)
-        self.assertEqual(self.sm.data["name"], "test")
+        self.sm.add_transition(TestState.IDLE, TestState.ACTIVE,
+                              lambda sm: condition_flag[0])
         
-        self.sm.data["counter"] += 1
-        self.assertEqual(self.sm.data["counter"], 1)
+        self.assertFalse(self.sm.run())
+        condition_flag[0] = True
+        self.assertTrue(self.sm.run())
+        self.assertEqual(self.sm.current_state, TestState.ACTIVE)
 
 
 class TestStateMachineIntegration(unittest.TestCase):
-    """Integration tests for complex scenarios."""
+    """Integration tests for StateMachine class."""
     
     def test_character_state_machine_scenario(self):
-        """Test realistic character state machine."""
-        
+        """Test a realistic character state machine scenario."""
         class CharState(Enum):
             IDLE = "idle"
+            WALKING = "walking"
             RUNNING = "running"
             JUMPING = "jumping"
         
-        class CharEvent(Enum):
-            START = "start"
-            JUMP = "jump"
-            LAND = "land"
-            STOP = "stop"
+        sm = StateMachine(verbose=False)
+        for state in CharState:
+            sm.add_state(state)
+        sm.set_state(CharState.IDLE)
         
-        def can_jump(sm, *args, **kwargs):
-            return sm.data.get("on_ground", False)
+        # Define condition flags (external state, not using sm.data)
+        input_state = {
+            'move_pressed': False,
+            'sprint_pressed': False,
+            'jump_pressed': False,
+            'landed': False,
+        }
         
-        sm = StateMachine(CharState, CharEvent, CharState.IDLE)
+        sm.add_transition(CharState.IDLE, CharState.WALKING, lambda sm: input_state['move_pressed'] and not input_state['sprint_pressed'])
+        sm.add_transition(CharState.WALKING, CharState.RUNNING, lambda sm: input_state['sprint_pressed'])
+        sm.add_transition(CharState.WALKING, CharState.IDLE, lambda sm: not input_state['move_pressed'])
+        sm.add_transition(CharState.RUNNING, CharState.WALKING, lambda sm: not input_state['sprint_pressed'])
+        sm.add_transition(CharState.RUNNING, CharState.IDLE, lambda sm: not input_state['move_pressed'])
+        sm.add_transition(CharState.IDLE, CharState.JUMPING, lambda sm: input_state['jump_pressed'])
+        sm.add_transition(CharState.JUMPING, CharState.IDLE, lambda sm: input_state['landed'])
         
-        sm.add_transition(CharState.IDLE, CharEvent.START, CharState.RUNNING)
-        sm.add_transition(CharState.RUNNING, CharEvent.JUMP, CharState.JUMPING, condition=can_jump)
-        sm.add_transition(CharState.JUMPING, CharEvent.LAND, CharState.IDLE)
-        sm.add_transition(CharState.RUNNING, CharEvent.STOP, CharState.IDLE)
+        # Simulate: idle -> walking
+        input_state['move_pressed'] = True
+        sm.run()
+        self.assertEqual(sm.current_state, CharState.WALKING)
         
-        # Idle to Running
-        sm.process_event(CharEvent.START)
+        # Simulate: walking -> running
+        input_state['sprint_pressed'] = True
+        sm.run()
         self.assertEqual(sm.current_state, CharState.RUNNING)
         
-        # Try to jump without being on ground
-        sm.data["on_ground"] = False
-        result = sm.process_event(CharEvent.JUMP)
-        self.assertFalse(result)
-        self.assertEqual(sm.current_state, CharState.RUNNING)
+        # Simulate: running -> walking
+        input_state['sprint_pressed'] = False
+        sm.run()
+        self.assertEqual(sm.current_state, CharState.WALKING)
         
-        # Now on ground, jump succeeds
-        sm.data["on_ground"] = True
-        result = sm.process_event(CharEvent.JUMP)
-        self.assertTrue(result)
+        # Simulate: walking -> idle
+        input_state['move_pressed'] = False
+        sm.run()
+        self.assertEqual(sm.current_state, CharState.IDLE)
+        
+        # Simulate: idle -> jump
+        input_state['jump_pressed'] = True
+        sm.run()
         self.assertEqual(sm.current_state, CharState.JUMPING)
         
-        # Land
-        sm.process_event(CharEvent.LAND)
+        # Simulate: jump -> idle (landed)
+        input_state['jump_pressed'] = False
+        input_state['landed'] = True
+        sm.run()
         self.assertEqual(sm.current_state, CharState.IDLE)
 
 
-def run_tests():
-    """Run all tests with verbose output."""
-    loader = unittest.TestLoader()
-    suite = unittest.TestSuite()
-    
-    suite.addTests(loader.loadTestsFromTestCase(TestStateMachine))
-    suite.addTests(loader.loadTestsFromTestCase(TestStateMachineIntegration))
-    
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-    
-    return result.wasSuccessful()
-
-
-if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+if __name__ == '__main__':
+    unittest.main()
