@@ -1,21 +1,19 @@
 """
 Animation controller using StateMachine for frame management.
 
-Frame advancement is driven by pygame.time.set_timer(). Call handle_event() in
-your pygame event loop to advance frames.
+Frame advancement is time-based via TimedTransition. Call update() once per
+game frame to advance frames.
 
-Only from_json initialization is supported.
+Use from_json() to load all animations from a character JSON file at once.
 """
 
 import json
+import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import pygame
-from common.state_machine import StateMachine
-
-# Single event type shared by all Animation instances
-ANIMATION_ADVANCE = pygame.USEREVENT
+from common.state_machine import StateMachine, TimedTransition
 
 
 class SpriteAnimation:
@@ -23,52 +21,46 @@ class SpriteAnimation:
     Animation controller backed by StateMachine.
 
     States are plain integers (0, 1, 2, ... n-1), one per frame.
-    Frame transitions are triggered by pygame timer events.
-    Each instance has a unique ID so multiple animations can coexist.
+    Frame transitions are TimedTransitions — they fire automatically once the
+    SM has been in a frame state for at least 1/fps seconds.
 
     Usage:
-        anim = SpriteAnimation.from_json("character.json", "walk", frame_delay_ms=100)
+        animations = SpriteAnimation.from_json("character.json", fps=10)
+        walk = next(a for a in animations if a.name == 'walk')
 
-        # In game loop:
-        for event in pygame.event.get():
-            anim.handle_event(event)
-
-        screen.blit(anim.get_current_frame(), pos)
+        # In game loop (once per frame):
+        walk.update()
+        screen.blit(walk.get_current_frame(), pos)
     """
-
-    _id_counter = 0
 
     def __init__(
         self,
         frames: List[pygame.Surface],
-        frame_delay_ms: int = 100,
-        flipped_frames: Optional[List[pygame.Surface]] = None,
+        fps: float = 10.0,
+        name: str = '',
         verbose: bool = False,
     ):
-        self._id = SpriteAnimation._id_counter
-        SpriteAnimation._id_counter += 1
-
+        self.name = name
         n = len(frames)
         self._frames = frames
-        self._flipped_frames = flipped_frames or []
 
         self.sm = StateMachine(verbose=verbose)
         for i in range(n):
             self.sm.add_state(i)
         self.sm.set_state(0)
 
-        # Each frame transitions to the next (wrapping). The condition is True
-        # only for the single tick inside handle_event() when the timer fires.
-        self._advance = False
+        # Each frame transitions to the next (wrapping) after 1/fps seconds.
+        # Keep references so set_fps() can update the duration on all of them.
+        self._timed_transitions: List[TimedTransition] = []
+        delay_s = 1.0 / fps
         for i in range(n):
-            self.sm.add_transition(i, (i + 1) % n, lambda sm: self._advance)
+            t = TimedTransition((i + 1) % n, delay_s)
+            self.sm.add_transition(i, t)
+            self._timed_transitions.append(t)
 
-        self.direction = 1
-        self._base_delay_ms = frame_delay_ms
-        self._current_delay_ms = frame_delay_ms
+        self._flipped = False
+        self._fps = fps
         self._running = False
-
-        self._timer_event = pygame.event.Event(ANIMATION_ADVANCE, animation_id=self._id)
         # Timer starts stopped; call start() to begin playback
 
     # ─── Factory ──────────────────────────────────────────────────────────────
@@ -77,11 +69,10 @@ class SpriteAnimation:
     def from_json(
         cls,
         json_path: str,
-        animation_name: str,
-        frame_delay_ms: int = 100,
+        fps: float = 10.0,
         verbose: bool = False,
-    ) -> "SpriteAnimation":
-        """Load a named animation from a packed character JSON file."""
+    ) -> List["SpriteAnimation"]:
+        """Load all animations from a character JSON file."""
         path = Path(json_path)
         if not path.exists():
             raise FileNotFoundError(f"JSON metadata not found: {json_path}")
@@ -93,18 +84,21 @@ class SpriteAnimation:
             raise FileNotFoundError(f"Spritesheet not found: {image_path}")
         sheet = pygame.image.load(str(image_path))
 
-        entry = meta["animations"][animation_name]
         fw, fh = meta["frame_width"], meta["frame_height"]
         grid_width = meta.get("grid_width", 1)
-        row, col, count = entry["row"], entry.get("col", 0), entry["frame_count"]
 
-        if grid_width > 1:
-            frames = cls._extract_wrapped(sheet, row, col, count, fw, fh, grid_width)
-        else:
-            frames = cls._extract_row(sheet, row, col, count, fw, fh)
+        animations = []
+        for anim_name, entry in meta["animations"].items():
+            row, col, count = entry["row"], entry.get("col", 0), entry["frame_count"]
+            if grid_width > 1:
+                frames = cls._extract_wrapped(sheet, row, col, count, fw, fh, grid_width)
+            else:
+                frames = cls._extract_row(sheet, row, col, count, fw, fh)
+            anim = cls(frames, fps=fps, name=anim_name, verbose=verbose)
+            print(f"[SpriteAnimation] Loaded '{anim_name}': {len(frames)} frames from {json_path}")
+            animations.append(anim)
 
-        print(f"[SpriteAnimation] Loaded '{animation_name}': {len(frames)} frames from {json_path}")
-        return cls(frames, frame_delay_ms, verbose=verbose)
+        return animations
 
     # ─── Sprite extraction ────────────────────────────────────────────────────
 
@@ -128,53 +122,53 @@ class SpriteAnimation:
 
     # ─── Runtime API ──────────────────────────────────────────────────────────
 
-    def handle_event(self, event: pygame.event.Event) -> bool:
-        """Call in the pygame event loop. Returns True if the frame advanced."""
+    def update(self) -> bool:
+        """Call once per game frame. Returns True if the frame advanced."""
         if not self._running:
             return False
-        if event.type == ANIMATION_ADVANCE and getattr(event, "animation_id", None) == self._id:
-            self._advance = True
-            result = self.sm.run()
-            self._advance = False
-            return result
-        return False
+        return self.sm.update()
+
+    def get_frame(self, index: int) -> pygame.Surface:
+        """Return the surface for the given frame index, horizontally flipped if set."""
+        frame = self._frames[index]
+        if self._flipped:
+            return pygame.transform.flip(frame, True, False)
+        return frame
 
     def get_current_frame(self) -> pygame.Surface:
-        """Return the surface for the current frame, flipped if direction == -1."""
-        i = self.sm.current_state
-        if self.direction == -1:
-            if self._flipped_frames:
-                return self._flipped_frames[i]
-            return pygame.transform.flip(self._frames[i], True, False)
-        return self._frames[i]
+        """Return the surface for the current frame, horizontally flipped if set."""
+        return self.get_frame(self.sm.current_state)
 
-    def set_direction(self, direction: int) -> None:
-        """Set flip direction: 1 = normal, -1 = horizontally flipped."""
-        if direction not in (-1, 1):
-            raise ValueError(f"Direction must be 1 or -1, got {direction}")
-        self.direction = direction
+    def flip(self, flipped: bool) -> None:
+        """Set horizontal flip: True = mirrored, False = normal."""
+        self._flipped = flipped
 
-    def set_speed_multiplier(self, multiplier: float) -> None:
-        """Adjust playback speed (1.0 = normal, 2.0 = double speed)."""
-        if multiplier <= 0:
-            raise ValueError(f"Speed multiplier must be positive, got {multiplier}")
-        delay = max(1, int(self._base_delay_ms / multiplier))
-        if delay != self._current_delay_ms:
-            self._current_delay_ms = delay
-            if self._running:
-                pygame.time.set_timer(self._timer_event, delay)
+    def set_fps(self, fps: float) -> None:
+        """Change playback speed in frames per second."""
+        if fps <= 0:
+            raise ValueError(f"FPS must be positive, got {fps}")
+        self._fps = fps
+        delay_s = 1.0 / fps
+        for t in self._timed_transitions:
+            t.duration = delay_s
 
     def start(self) -> None:
-        """Begin frame advancement."""
+        """Begin frame advancement. Resets the frame timer so the first frame
+        runs for a full 1/fps interval before advancing."""
+        self.sm.time_entered_state = time.time()
         self._running = True
-        pygame.time.set_timer(self._timer_event, self._current_delay_ms)
 
     def stop(self) -> None:
         """Pause frame advancement."""
         self._running = False
-        pygame.time.set_timer(self._timer_event, 0)
 
     def reset(self) -> None:
         """Return to the first frame."""
         self.sm.set_state(0)
 
+
+class Animator():
+    """Higher-level controller for managing multiple SpriteAnimations and states."""
+    def __init__(self, verbose: bool = False):
+        self.animations = {}
+        self.sm = StateMachine(verbose=verbose)

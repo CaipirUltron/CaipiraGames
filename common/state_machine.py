@@ -16,6 +16,27 @@ import time
 import logging
 from typing import Callable, Optional, Dict, Any, List, Tuple
 
+class Transition:
+    """Wraps a condition callable for use with StateMachine.add_transition()."""
+    def __init__(self, to_state: Any, condition: Optional[Callable] = None):
+        self.to_state = to_state
+        self.condition = condition
+
+    def check(self, sm, *args, **kwargs) -> bool:
+        """Return True if this transition should fire."""
+        if self.condition is None:
+            return True
+        return bool(self.condition(sm, *args, **kwargs))
+
+class TimedTransition(Transition):
+    """Fires after the SM has been in the origin state for at least `duration` seconds."""
+    def __init__(self, to_state: Any, duration: float):
+        super().__init__(to_state, condition=None)
+        self.duration = duration
+
+    def check(self, sm, *args, **kwargs) -> bool:
+        return sm.get_state_duration() >= self.duration
+
 class StateMachine:
     """Manages states and condition-based transitions."""
     
@@ -149,24 +170,38 @@ class StateMachine:
         
         self._perform_transition(state)
     
-    def add_transition(self, 
+    def add_transition(self,
                        from_state: Any,
-                       to_state: Any,
+                       to_state_or_transition: Any,
                        condition: Optional[Callable] = None) -> None:
-        """Add a transition with optional condition. Raises ValueError if states not registered."""
+        """Add a transition. Accepts two styles:
+
+        New style — pass a Transition (or TimedTransition) object; to_state lives inside it:
+            sm.add_transition('idle', TimedTransition('walk', 2.0))
+            sm.add_transition('idle', Transition('walk', lambda sm: flag))
+
+        Old style — pass to_state and an optional condition callable:
+            sm.add_transition('idle', 'walk', lambda sm: flag)
+        """
+        if isinstance(to_state_or_transition, Transition):
+            transition = to_state_or_transition
+            to_state = transition.to_state
+        else:
+            to_state = to_state_or_transition
+            transition = Transition(to_state, condition)
+
         if from_state not in self._state_ids:
             raise ValueError(f"State '{from_state}' is not registered. Use add_state() first.")
         if to_state not in self._state_ids:
             raise ValueError(f"State '{to_state}' is not registered. Use add_state() first.")
-        
+
         from_int_id = self._state_ids[from_state]
         to_int_id = self._state_ids[to_state]
-        
-        # Add to the transition list for this state
+
         if from_int_id not in self._transitions:
             self._transitions[from_int_id] = []
-        
-        self._transitions[from_int_id].append((to_int_id, condition))
+
+        self._transitions[from_int_id].append((to_int_id, transition))
     
     def set_on_enter(self, state: Any, callback: Callable) -> None:
         """Register on_enter callback. Raises ValueError if state not registered."""
@@ -237,7 +272,7 @@ class StateMachine:
         """Set the name of this state machine instance."""
         self.name = name
 
-    def run(self, *args, **kwargs) -> bool:
+    def update(self, *args, **kwargs) -> bool:
         """Execute on_run callback and check transitions. Returns True if transition fired."""
         if self.current_state is None:
             return False
@@ -254,10 +289,9 @@ class StateMachine:
         
         # Check transitions from current state
         if current_state_int_id in self._transitions:
-            for to_state_int_id, condition in self._transitions[current_state_int_id]:
-                # Check if condition passes
+            for to_state_int_id, transition in self._transitions[current_state_int_id]:
                 try:
-                    if condition is None or condition(self, *args, **kwargs):
+                    if transition.check(self, *args, **kwargs):
                         to_state = self._state_id_reverse[to_state_int_id]
                         self._perform_transition(to_state)
                         return True

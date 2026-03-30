@@ -13,7 +13,8 @@ def main():
 
     SCREEN_WIDTH = 800
     SCREEN_HEIGHT = 600
-    FPS = 60
+    GAME_FPS = 60
+    ANIM_FPS = 10
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Animation Demo - LEFT/A: backward | RIGHT/D: forward | SPACE: run | ESC: quit")
@@ -23,15 +24,16 @@ def main():
         os.path.join(os.path.dirname(__file__), '..', 'assets', 'sprites', 'characters', 'tank.json')
     )
 
-    walk_anim = SpriteAnimation.from_json(json_path, 'walk', frame_delay_ms=100)
-    print(f"✓ Loaded animation from {json_path}")
+    animations = SpriteAnimation.from_json(json_path, fps=ANIM_FPS)
+    walk_anim = next(a for a in animations if a.name == 'walk')
+    print(f"✓ Loaded {len(animations)} animation(s) from {json_path}")
 
     is_moving = False
-    is_running = False
+    was_playing = False
 
     running = True
     while running:
-        clock.tick(FPS)
+        clock.tick(GAME_FPS)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -39,7 +41,6 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-            walk_anim.handle_event(event)
 
         keys = pygame.key.get_pressed()
         left = keys[pygame.K_LEFT] or keys[pygame.K_a]
@@ -49,21 +50,26 @@ def main():
 
         if left and not right:
             is_moving = True
-            walk_anim.set_direction(-1)
+            walk_anim.flip(True)
         elif right and not left:
             is_moving = True
-            walk_anim.set_direction(1)
+            walk_anim.flip(False)
         else:
             is_moving = False
 
-        if is_moving and not was_moving:
-            walk_anim.start()
-        elif not is_moving and was_moving:
-            walk_anim.stop()
+        if not is_moving and was_moving:
             walk_anim.reset()
 
+        if is_moving and not was_playing:
+            walk_anim.start()
+        elif not is_moving and was_playing:
+            walk_anim.stop()
+        was_playing = is_moving
+
+        walk_anim.update()
+
         is_running = keys[pygame.K_SPACE] and is_moving
-        walk_anim.set_speed_multiplier(2.0 if is_running else 1.0)
+        walk_anim.set_fps(ANIM_FPS * 2 if is_running else ANIM_FPS)
 
         # Draw
         screen.fill((50, 50, 50))
@@ -77,10 +83,10 @@ def main():
         screen.blit(scaled_frame, scaled_frame.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)))
 
         font = pygame.font.Font(None, 36)
-        frame_num = walk_anim.sm.current_state  # now a plain int
+        frame_num = walk_anim.sm.current_state
 
         screen.blit(font.render(f"Frame: {frame_num + 1}", True, (255, 255, 255)), (10, 10))
-        screen.blit(font.render(f"Direction: {'RIGHT' if walk_anim.direction == 1 else 'LEFT'}", True, (100, 200, 255)), (10, 50))
+        screen.blit(font.render(f"Direction: {'LEFT' if walk_anim._flipped else 'RIGHT'}", True, (100, 200, 255)), (10, 50))
         screen.blit(font.render(f"Mode: {'RUNNING' if is_running else 'WALKING'}", True, (255, 200, 0) if is_running else (200, 200, 200)), (10, 90))
         screen.blit(font.render("Moving: YES" if is_moving else "Moving: NO", True, (0, 255, 0) if is_moving else (255, 0, 0)), (10, 130))
 
